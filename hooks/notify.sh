@@ -7,8 +7,16 @@
 
 payload=$(cat)
 
+# JSON-escape backslashes and quotes in the interpolated env values.
+json_escape() {
+  local s=${1//\\/\\\\}
+  printf '%s' "${s//\"/\\\"}"
+}
+pane=$(json_escape "${TMUX_PANE:-}")
+cfg=$(json_escape "${CLAUDE_CONFIG_DIR:-}")
+
 body=$(cat <<EOF
-{"tmux_pane":"${TMUX_PANE:-}","config_dir":"${CLAUDE_CONFIG_DIR:-}","hook":${payload:-null}}
+{"tmux_pane":"${pane}","config_dir":"${cfg}","hook":${payload:-null}}
 EOF
 )
 

@@ -53,6 +53,12 @@ export function initBot(): boolean {
       await ctx.answerCallbackQuery({ text: "Sessione non trovata" });
       return;
     }
+    // Stale-tap guard: past the TTL the dialog is likely gone and the
+    // keystroke would land in the session's input instead.
+    if (Date.now() - s.lastSeen > ACTION_TTL_MS) {
+      await ctx.answerCallbackQuery({ text: "Scaduto — richiesta troppo vecchia" });
+      return;
+    }
     if (!(await paneAlive(s.pane))) {
       await ctx.answerCallbackQuery({ text: `Pane ${s.pane} non attivo` });
       return;
@@ -135,7 +141,15 @@ export function initBot(): boolean {
 // text; without this the user gets duplicates.
 const DEDUPE_MS = 90_000;
 const CMD_MAX = 200; // truncate long commands in the message
+// Buttons older than this are refused: the permission dialog is likely gone
+// and the keystrokes would end up in the session's prompt input.
+const ACTION_TTL_MS = 10 * 60 * 1000;
 const lastPush = new Map<string, number>(); // key: sessionId::message
+
+function pruneLastPush(now: number): void {
+  if (lastPush.size < 200) return;
+  for (const [k, t] of lastPush) if (now - t > DEDUPE_MS) lastPush.delete(k);
+}
 
 export interface PushOptions {
   chatId?: string; // per-project target override (must be in allowedChats)
@@ -159,6 +173,7 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
   const now = Date.now();
   const prev = lastPush.get(key) ?? 0;
   if (now - prev < DEDUPE_MS) return;
+  pruneLastPush(now);
   lastPush.set(key, now);
 
   const kb = new InlineKeyboard()

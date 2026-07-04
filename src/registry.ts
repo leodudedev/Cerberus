@@ -23,7 +23,24 @@ const sessions = new Map<string, SessionInfo>();
 // to the session that produced it.
 const messageToSession = new Map<number, string>();
 
+// Long-running daemon: keep the maps bounded. Sessions idle beyond the TTL are
+// swept on write; the message map keeps only the most recent links.
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const MESSAGE_LINKS_MAX = 500;
+
+function sweep(): void {
+  const cutoff = Date.now() - SESSION_TTL_MS;
+  for (const [id, s] of sessions) if (s.lastSeen < cutoff) sessions.delete(id);
+  // Maps iterate in insertion order: drop the oldest links beyond the cap.
+  while (messageToSession.size > MESSAGE_LINKS_MAX) {
+    const oldest = messageToSession.keys().next().value;
+    if (oldest === undefined) break;
+    messageToSession.delete(oldest);
+  }
+}
+
 export function upsertSession(info: Omit<SessionInfo, "lastSeen">): SessionInfo {
+  sweep();
   const record: SessionInfo = { ...info, lastSeen: Date.now() };
   sessions.set(info.sessionId, record);
   return record;

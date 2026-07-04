@@ -17,7 +17,9 @@ export const RISK_RANK: Record<Risk, number> = {
 
 // Patterns scanned against the whole command string (covers pipes and && chains).
 const DANGER: RegExp[] = [
-  /\brm\b/, // remove
+  // rm only in command position (start, after ;&|, or via sudo/xargs/exec) so
+  // "pnpm rm pkg" or a quoted "rm old code" don't trip it.
+  /(^|[;&|]\s*|\b(?:sudo|xargs|exec)\s+)rm\b/,
   /\bsudo\b/,
   /\bdd\b/,
   /\bmkfs\w*/,
@@ -27,7 +29,8 @@ const DANGER: RegExp[] = [
   /\bchown\s+-R\b/,
   /\bgit\s+reset\s+--hard\b/,
   /\bgit\s+clean\s+-[a-z]*f/,
-  /--force\b|\s-f\b.*\bpush\b|\bpush\b.*\s-f\b/,
+  // --force only within a git segment; e.g. "pnpm install --force" stays caution
+  /\bgit\b[^;&|]*--force\b|\bgit\b[^;&|]*\bpush\b[^;&|]*\s-f\b/,
   /\b(truncate|fdisk|format)\b/,
   /\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b/, // pipe to shell
   /\beval\b/,
@@ -39,7 +42,7 @@ const CAUTION: RegExp[] = [
   /\b(mv|cp|chmod|chown|ln|mkdir|touch|kill)\b/,
   /\bsed\s+-i\b/,
   /\bgit\s+(commit|push|rebase|merge|checkout|stash|cherry-pick)\b/,
-  /\b(npm|pnpm|yarn|composer|pip|pip3|brew|npx|cargo|gem)\s+(install|add|remove|uninstall|update|upgrade|i)\b/,
+  /\b(npm|pnpm|yarn|composer|pip|pip3|brew|npx|cargo|gem)\s+(install|add|remove|rm|un|uninstall|unlink|update|upgrade|i)\b/,
   /\b(curl|wget|scp|rsync|ssh|docker|systemctl|launchctl)\b/,
   /\bmysql\b|\bpsql\b|\bredis-cli\b|\bwp\s+db\b/,
 ];
