@@ -54,6 +54,9 @@ const server = createServer(async (req, res) => {
       lastAssistantText(hook.transcript_path),
       lastToolUse(hook.transcript_path),
     ]);
+    // The last tool_use is only meaningful for permission notifications; on
+    // "waiting for input" it would be a stale, already-executed tool.
+    const isPermission = /permission/i.test(hook.message ?? "");
     const session = upsertSession({
       sessionId: hook.session_id ?? "unknown",
       pane: body?.tmux_pane || "",
@@ -61,8 +64,8 @@ const server = createServer(async (req, res) => {
       cwd: hook.cwd ?? "",
       lastMessage: hook.message ?? "",
       detail,
-      toolName: tool?.name ?? "",
-      command: tool?.command ?? "",
+      toolName: isPermission ? tool?.name ?? "" : "",
+      command: isPermission ? tool?.command ?? "" : "",
     });
     console.log("[event]", {
       profile,
@@ -90,6 +93,15 @@ const server = createServer(async (req, res) => {
 
   res.writeHead(404, { "content-type": "application/json" });
   res.end(JSON.stringify({ error: "not_found" }));
+});
+
+server.on("error", (e: NodeJS.ErrnoException) => {
+  if (e.code === "EADDRINUSE") {
+    console.error(`[daemon] porta ${config.port} occupata — daemon già attivo?`);
+    process.exit(1);
+  }
+  console.error("[daemon] server error:", e.message);
+  process.exit(1);
 });
 
 // Bind only on loopback: the daemon must never be reachable off-host.

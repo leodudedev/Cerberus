@@ -124,7 +124,9 @@ export function initBot(): boolean {
     });
   });
 
-  bot.start({ onStart: (me) => console.log(`[bot] @${me.username} attivo`) });
+  bot
+    .start({ onStart: (me) => console.log(`[bot] @${me.username} attivo`) })
+    .catch((e) => console.error("[bot] polling terminato con errore:", e?.message ?? e));
   return true;
 }
 
@@ -165,11 +167,11 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
     .text("⎋ Esc", `esc:${s.sessionId}`);
 
   const folder = basename(s.cwd) || s.cwd;
-  let text = `🔔 *${escapeMd(cap(s.profile))}* · \`${escapeMd(folder)}\`\n${escapeMd(s.lastMessage)}`;
+  let text = `🔔 *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
 
   // Tool awaiting permission, prefixed with its risk icon.
   if (s.toolName) {
-    const cmd = s.command ? `: \`${escapeMd(truncate(s.command, CMD_MAX))}\`` : "";
+    const cmd = s.command ? `: \`${escapeCode(truncate(s.command, CMD_MAX))}\`` : "";
     text += `\n\n${RISK_ICON[risk]} *${escapeMd(s.toolName)}*${cmd}`;
   }
   if (s.detail) text += `\n\n💬 ${escapeMd(truncate(s.detail, 400))}`;
@@ -193,4 +195,10 @@ function truncate(s: string, n: number): string {
 // Minimal MarkdownV2 escaping for the dynamic fields.
 function escapeMd(s: string): string {
   return s.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, (c) => `\\${c}`);
+}
+
+// Inside MarkdownV2 code spans only backslash and backtick are special;
+// escaping anything else renders literal backslashes.
+function escapeCode(s: string): string {
+  return s.replace(/[`\\]/g, (c) => `\\${c}`);
 }

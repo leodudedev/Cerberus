@@ -16,14 +16,15 @@ export async function paneAlive(pane: string): Promise<boolean> {
   }
 }
 
-// Send literal text into a pane (no trailing newline).
+// Send literal text into a pane (no trailing newline). The `--` guard keeps
+// text starting with "-" from being parsed as a tmux flag.
 export async function sendText(pane: string, text: string): Promise<void> {
-  await exec("tmux", ["send-keys", "-t", pane, "-l", text]);
+  await exec("tmux", ["send-keys", "-t", pane, "-l", "--", text]);
 }
 
 // Send a named key (e.g. "Enter", "Escape") into a pane.
 export async function sendKey(pane: string, key: string): Promise<void> {
-  await exec("tmux", ["send-keys", "-t", pane, key]);
+  await exec("tmux", ["send-keys", "-t", pane, "--", key]);
 }
 
 // Type a prompt and submit it.
