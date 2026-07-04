@@ -1,0 +1,78 @@
+// Risk classifier for a pending permission. Returns an icon shown before the
+// command in the Telegram message. Priority: danger > caution > safe.
+
+export type Risk = "safe" | "caution" | "danger";
+
+export const RISK_ICON: Record<Risk, string> = {
+  safe: "🟢",
+  caution: "🟡",
+  danger: "🔴",
+};
+
+// Patterns scanned against the whole command string (covers pipes and && chains).
+const DANGER: RegExp[] = [
+  /\brm\b/, // remove
+  /\bsudo\b/,
+  /\bdd\b/,
+  /\bmkfs\w*/,
+  /\b(shutdown|reboot|halt|poweroff)\b/,
+  /\bkillall\b/,
+  /\bchmod\s+-?R?\s*0*777\b/,
+  /\bchown\s+-R\b/,
+  /\bgit\s+reset\s+--hard\b/,
+  /\bgit\s+clean\s+-[a-z]*f/,
+  /--force\b|\s-f\b.*\bpush\b|\bpush\b.*\s-f\b/,
+  /\b(truncate|fdisk|format)\b/,
+  /\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b/, // pipe to shell
+  /\beval\b/,
+  />\s*\/(dev|etc|sys|boot)\b/, // redirect into system paths
+  /:\s*\(\s*\)\s*\{/, // fork bomb
+];
+
+const CAUTION: RegExp[] = [
+  /\b(mv|cp|chmod|chown|ln|mkdir|touch|kill)\b/,
+  /\bsed\s+-i\b/,
+  /\bgit\s+(commit|push|rebase|merge|checkout|stash|cherry-pick)\b/,
+  /\b(npm|pnpm|yarn|composer|pip|pip3|brew|npx|cargo|gem)\s+(install|add|remove|uninstall|update|upgrade|i)\b/,
+  /\b(curl|wget|scp|rsync|ssh|docker|systemctl|launchctl)\b/,
+  /\bmysql\b|\bpsql\b|\bredis-cli\b|\bwp\s+db\b/,
+];
+
+const SAFE: RegExp[] = [
+  /^\s*(cat|ls|cd|pwd|echo|printf|grep|rg|find|head|tail|wc|which|tree|less|more|file|stat|env|date|whoami|hostname|uname|df|du|ps|top)\b/,
+  /^\s*git\s+(status|log|diff|show|branch|remote|blame)\b/,
+  /^\s*(node|npm|pnpm|yarn|python3?|php|tsc)\s+(-v|--version)\b/,
+];
+
+export function classifyCommand(command: string): Risk {
+  const c = command.trim();
+  if (!c) return "caution";
+  if (DANGER.some((r) => r.test(c))) return "danger";
+  if (SAFE.some((r) => r.test(c))) return "safe";
+  if (CAUTION.some((r) => r.test(c))) return "caution";
+  return "safe"; // plain read-only-ish command with no flagged token
+}
+
+// Risk for non-Bash tools, classified by tool name.
+export function classifyTool(tool: string): Risk {
+  switch (tool) {
+    case "Read":
+    case "Glob":
+    case "Grep":
+    case "NotebookRead":
+      return "safe";
+    case "Write":
+    case "Edit":
+    case "MultiEdit":
+    case "NotebookEdit":
+    case "WebFetch":
+    case "WebSearch":
+      return "caution";
+    default:
+      return "caution";
+  }
+}
+
+export function riskFor(tool: string, command: string): Risk {
+  return tool === "Bash" ? classifyCommand(command) : classifyTool(tool);
+}
