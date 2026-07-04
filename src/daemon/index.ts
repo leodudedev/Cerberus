@@ -50,13 +50,16 @@ const server = createServer(async (req, res) => {
 
     const profile = profileFromConfigDir(body?.config_dir);
     const hook = body?.hook ?? {};
+    // The last tool_use is only meaningful for permission notifications; on
+    // "waiting for input" it would be a stale, already-executed tool.
+    const isPermission = /permission/i.test(hook.message ?? "");
+    // The pending tool_use may not be flushed to the transcript yet when the
+    // hook fires — give it a moment before reading.
+    if (isPermission) await new Promise((r) => setTimeout(r, 400));
     const [detail, tool] = await Promise.all([
       lastAssistantText(hook.transcript_path),
       lastToolUse(hook.transcript_path),
     ]);
-    // The last tool_use is only meaningful for permission notifications; on
-    // "waiting for input" it would be a stale, already-executed tool.
-    const isPermission = /permission/i.test(hook.message ?? "");
     const session = upsertSession({
       sessionId: hook.session_id ?? "unknown",
       pane: body?.tmux_pane || "",

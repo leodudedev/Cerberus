@@ -41,16 +41,30 @@ export async function lastAssistantText(path: string | undefined): Promise<strin
   return "";
 }
 
-// Most recent tool_use block — the tool awaiting permission.
+// Most recent *pending* tool_use block — the tool awaiting permission.
+// A completed tool_use has a matching tool_result in a later user message;
+// if the newest tool_use is already resolved, the pending one hasn't been
+// flushed to the transcript yet, so return null rather than a stale tool.
 export async function lastToolUse(path: string | undefined): Promise<ToolUse | null> {
   if (!path) return null;
   try {
     const lines = await readLines(path);
+
+    const resolved = new Set<string>();
+    for (const j of lines) {
+      if (j?.type !== "user" || !Array.isArray(j.message?.content)) continue;
+      for (const b of j.message.content)
+        if (b?.type === "tool_result" && b.tool_use_id) resolved.add(String(b.tool_use_id));
+    }
+
     for (let i = lines.length - 1; i >= 0; i--) {
       const j = lines[i];
       if (j?.type !== "assistant" || !Array.isArray(j.message?.content)) continue;
       const block = [...j.message.content].reverse().find((b) => b?.type === "tool_use");
-      if (block) return { name: String(block.name ?? ""), command: summarizeInput(block.name, block.input) };
+      if (block) {
+        if (block.id && resolved.has(String(block.id))) return null; // already executed
+        return { name: String(block.name ?? ""), command: summarizeInput(block.name, block.input) };
+      }
     }
   } catch {
     // ignore

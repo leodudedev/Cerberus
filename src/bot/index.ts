@@ -125,9 +125,13 @@ export function initBot(): boolean {
     }
 
     await sendPrompt(target.pane, text);
-    await ctx.reply(`→ inviato a *${target.profile}* \`${target.pane}\``, {
-      parse_mode: "MarkdownV2",
-    });
+    // Silent delivery confirmation: react to the user's message instead of
+    // sending an extra chat message.
+    try {
+      await ctx.react("👍");
+    } catch {
+      await ctx.reply(`→ inviato a ${target.profile}`);
+    }
   });
 
   bot
