@@ -1,15 +1,30 @@
+import { loadState, saveState } from "./persist.ts";
+
 // Runtime mute-set, keyed by project cwd. Complements the static .cerberus.json
 // mute: this one is toggled live (e.g. from Telegram) and supports a TTL.
-// In-memory only — cleared on daemon restart.
+// Snapshotted to state.json so it survives a daemon restart.
 
 const muted = new Map<string, number>(); // cwd -> expiry epoch ms (Infinity = forever)
 
+// Restore snapshot (null = forever).
+for (const [cwd, until] of Object.entries(loadState().muted ?? {}))
+  muted.set(cwd, until === null ? Infinity : until);
+
+function persist(): void {
+  const out: Record<string, number | null> = {};
+  for (const [cwd, until] of muted) out[cwd] = until === Infinity ? null : until;
+  saveState({ muted: out });
+}
+
 export function mute(cwd: string, ttlMs?: number): void {
   muted.set(cwd, ttlMs && ttlMs > 0 ? Date.now() + ttlMs : Infinity);
+  persist();
 }
 
 export function unmute(cwd: string): boolean {
-  return muted.delete(cwd);
+  const removed = muted.delete(cwd);
+  if (removed) persist();
+  return removed;
 }
 
 // A cwd is muted if it matches a muted entry or sits under one.

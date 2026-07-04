@@ -44,8 +44,8 @@ notify.sh (hook, in pane) --POST /event--> daemon --> Telegram bot --> phone
 
 ## Gotchas (important)
 
-- **Do NOT `kill` port 8787 blindly.** A dev daemon runs there; killing it via
-  `lsof -ti tcp:8787 | xargs kill` terminates the user's running instance.
+- **Do NOT `kill` port 9666 blindly.** A dev daemon runs there; killing it via
+  `lsof -ti tcp:9666 | xargs kill` terminates the user's running instance.
   For smoke tests use a different `PORT` (e.g. 8799).
 - **Do NOT start a second bot with the same token** while one is running —
   Telegram returns 409 (two `getUpdates` pollers). For smoke tests run the daemon

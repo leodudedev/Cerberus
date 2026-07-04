@@ -4,6 +4,9 @@
   "description": "Remote control per sessioni Claude Code multi-account via tmux + Telegram",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
   "bin": {
     "cerberus": "./src/bin/cerberus.ts"
   },

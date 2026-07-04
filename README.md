@@ -10,7 +10,7 @@ that lands in the right session. Every pending command is tagged with a risk ico
 
 ```
 ┌─ tmux ─────────────┐   ┌─ cerberus daemon ─┐   ┌─ Telegram ─┐
-│ pane %3  claude    │   │  127.0.0.1:8787   │   │            │
+│ pane %3  claude    │   │  127.0.0.1:9666   │   │            │
 │  └ notify.sh hook ─┼──▶│  enrich + push    ├──▶│  🔔 + 🟢🟡🔴 │
 │                    │   │                   │   │  buttons    │
 │                    │◀──┤  tmux send-keys   │◀──┤  tap/reply  │
@@ -32,7 +32,7 @@ attention, *what* it's asking, *how risky* it is — and lets you answer remotel
 1. A Claude Code **`Notification` hook** (`notify.sh`) fires when a session needs
    attention. It runs **inside the tmux pane**, so it inherits `$TMUX_PANE` and
    `$CLAUDE_CONFIG_DIR`.
-2. It POSTs the event to the local **daemon** (`127.0.0.1:8787`), which reads the
+2. It POSTs the event to the local **daemon** (`127.0.0.1:9666`), which reads the
    session transcript to extract the pending tool + the last thing Claude said.
 3. The daemon pushes a **Telegram** message with the project, the command (risk
    tagged), and inline buttons.
@@ -45,7 +45,7 @@ Accounts are distinguished by `CLAUDE_CONFIG_DIR` (each maps to a profile label)
 
 ## Requirements
 
-- **Node.js ≥ 22** (23+ recommended — runs `.ts` files natively, no build step)
+- **Node.js ≥ 22.18** (runs `.ts` files natively — no build step; 23.6+ recommended)
 - **pnpm**
 - **tmux**
 - A **Telegram bot** token ([@BotFather](https://t.me/BotFather)) and your chat id
@@ -67,7 +67,7 @@ cp .env.example .env      # then fill it in (see below)
 TELEGRAM_BOT_TOKEN=123456:ABC...     # from @BotFather
 TELEGRAM_CHAT_ID=123456789           # your chat id (from @userinfobot)
 TELEGRAM_ALLOWED_CHATS=              # optional extra chats/groups (csv), for routing
-PORT=8787                            # daemon port (loopback only)
+PORT=9666                            # daemon port (loopback only)
 ```
 
 Get your chat id: DM your bot `/start`, then call
@@ -239,7 +239,7 @@ pnpm typecheck   # tsc, no emit
 
 No build step — Node runs the TypeScript sources directly.
 
-> Testing tip: don't kill port 8787 if a daemon is already there, and don't run a
+> Testing tip: don't kill port 9666 if a daemon is already there, and don't run a
 > second bot with the same token (Telegram 409). Use a different `PORT` and/or run
 > with the token unset when smoke-testing.
 

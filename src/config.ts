@@ -1,11 +1,5 @@
 // Central config loaded from environment (see .env.example)
 
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
-}
-
 // Keystrokes sent for each button action. Isolated here because Claude Code's
 // permission-prompt UI (numbered options) can change between versions.
 // Each entry is a sequence of tmux send-keys tokens (literal digits or key names).
@@ -18,11 +12,7 @@ export const actionKeys: Record<string, string[]> = {
   esc: ["Escape"],
 };
 
+// Default port 9666 — away from common dev ranges and from headroom (8787/8788).
 export const config = {
-  port: Number(process.env.PORT ?? 8787),
-  telegram: {
-    // Read lazily in the bot layer so the daemon can boot without a token during scaffolding
-    token: () => required("TELEGRAM_BOT_TOKEN"),
-    chatId: () => required("TELEGRAM_CHAT_ID"),
-  },
+  port: Number(process.env.PORT ?? 9666),
 } as const;

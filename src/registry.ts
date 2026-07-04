@@ -1,4 +1,5 @@
 import type { Profile } from "./profile.ts";
+import { loadState, saveState } from "./persist.ts";
 
 // In-memory registry of live sessions, keyed by Claude session_id.
 // Maps a session to its tmux pane so remote replies (Fase 3) can be routed
@@ -17,10 +18,14 @@ export interface SessionInfo {
   lastSeen: number;
 }
 
-const sessions = new Map<string, SessionInfo>();
+// Restored from the snapshot so buttons/replies keep working after a daemon
+// restart (stale entries fall to the sweep / action TTL anyway).
+const sessions = new Map<string, SessionInfo>(
+  Object.entries(loadState().sessions ?? {}) as [string, SessionInfo][],
+);
 
 // Telegram message_id -> sessionId, so a reply to a notification routes back
-// to the session that produced it.
+// to the session that produced it. Ephemeral by design.
 const messageToSession = new Map<number, string>();
 
 // Long-running daemon: keep the maps bounded. Sessions idle beyond the TTL are
@@ -43,6 +48,7 @@ export function upsertSession(info: Omit<SessionInfo, "lastSeen">): SessionInfo 
   sweep();
   const record: SessionInfo = { ...info, lastSeen: Date.now() };
   sessions.set(info.sessionId, record);
+  saveState({ sessions: Object.fromEntries(sessions) });
   return record;
 }
 
