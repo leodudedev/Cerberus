@@ -1,0 +1,7 @@
+.tokensave
+.claude/settings.local.json
+node_modules
+dist
+.env
+*.log
+registry.json
