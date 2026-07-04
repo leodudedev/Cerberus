@@ -11,6 +11,7 @@ export interface ProjectConfig {
   mute?: boolean;
   chatId?: string;
   minRisk?: Risk;
+  notifyIdle?: boolean; // false = skip "waiting for input" notifications
 }
 
 const FILENAME = ".cerberus.json";
@@ -51,6 +52,7 @@ export function readProjectConfig(cwd: string): ProjectConfig {
       minRisk: ["safe", "caution", "danger"].includes(parsed.minRisk as string)
         ? parsed.minRisk
         : undefined,
+      notifyIdle: parsed.notifyIdle === false ? false : undefined,
     };
     cache.set(file, { mtimeMs, cfg });
     return cfg;

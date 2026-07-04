@@ -79,6 +79,8 @@ const server = createServer(async (req, res) => {
     const pcfg = readProjectConfig(session.cwd);
     if (pcfg.mute || isMuted(session.cwd)) {
       console.log("[mute]", session.cwd);
+    } else if (!isPermission && pcfg.notifyIdle === false) {
+      console.log("[idle-skip]", session.cwd);
     } else {
       // Fire-and-forget push; never block the hook response.
       void pushAttention(session, { chatId: pcfg.chatId, minRisk: pcfg.minRisk }).catch(

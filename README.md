@@ -169,7 +169,8 @@ per-project rules. The daemon reads the nearest one before pushing.
 {
   "mute": true,
   "chatId": "-1001234567890",
-  "minRisk": "caution"
+  "minRisk": "caution",
+  "notifyIdle": false
 }
 ```
 
@@ -178,6 +179,7 @@ per-project rules. The daemon reads the nearest one before pushing.
 | `mute` | suppress all notifications for this project |
 | `chatId` | route this project's notifications to a specific chat/group |
 | `minRisk` | only notify at/above this risk (`safe` < `caution` < `danger`) |
+| `notifyIdle` | `false` = skip "waiting for input" notifications (permissions still notify) |
 
 `chatId` is honored only if it's in `TELEGRAM_ALLOWED_CHATS` (safety: a cloned
 repo can't silently redirect your notifications). A malformed file is ignored.

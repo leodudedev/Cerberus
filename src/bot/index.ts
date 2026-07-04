@@ -176,10 +176,15 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
   pruneLastPush(now);
   lastPush.set(key, now);
 
-  const kb = new InlineKeyboard()
-    .text("✅ Approva", `approve:${s.sessionId}`)
-    .text("❌ Nega", `deny:${s.sessionId}`)
-    .text("⎋ Esc", `esc:${s.sessionId}`);
+  // Buttons only on permission requests: on "waiting for input" there is no
+  // dialog to confirm and a tap would type into the session's prompt.
+  const isPermission = /permission/i.test(s.lastMessage);
+  const kb = isPermission
+    ? new InlineKeyboard()
+        .text("✅ Approva", `approve:${s.sessionId}`)
+        .text("❌ Nega", `deny:${s.sessionId}`)
+        .text("⎋ Esc", `esc:${s.sessionId}`)
+    : undefined;
 
   const folder = basename(s.cwd) || s.cwd;
   let text = `🔔 *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
