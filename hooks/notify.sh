@@ -5,6 +5,10 @@
 # plus that context to the local daemon.
 # Best-effort and non-blocking: it must never fail or stall the Claude session.
 
+# Outside tmux there is no pane to drive remotely (approve/deny/prompt would
+# all fail), so skip the notification entirely.
+[ -z "${TMUX_PANE:-}" ] && exit 0
+
 payload=$(cat)
 
 # JSON-escape backslashes and quotes in the interpolated env values.
