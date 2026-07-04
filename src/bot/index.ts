@@ -109,10 +109,16 @@ export function initBot(): boolean {
   });
 
   // Free text: a reply to a notification targets that session; a bare message
-  // targets the most recent session. Sends the text as a prompt.
+  // targets the most recent session. Sends the text as a prompt. Slash texts
+  // still land here unless consumed by a bot command above, so CLI slash
+  // commands (/model, /compact, ...) are forwarded to the session.
+  const RESERVED = new Set(["start", "help"]); // never forward these to the CLI
   bot.on("message:text", async (ctx) => {
     const text = ctx.message.text;
-    if (text.startsWith("/")) return; // commands handled above
+    if (text.startsWith("/")) {
+      const cmd = text.slice(1).split(/[\s@]/)[0]!.toLowerCase();
+      if (RESERVED.has(cmd)) return;
+    }
 
     const target = resolveTarget(ctx);
     if (!target) {
