@@ -10,6 +10,7 @@ import {
   type SessionInfo,
 } from "../registry.ts";
 import { paneAlive, sendKey, sendPrompt } from "../tmux.ts";
+import { mute, unmute, listMuted, parseDuration } from "../mute.ts";
 
 // Telegram layer: push attention events, and route replies/buttons back to the
 // originating tmux pane via send-keys.
@@ -61,13 +62,53 @@ export function initBot(): boolean {
     await ctx.answerCallbackQuery({ text: `${action} → ${s.profile} ${s.pane}` });
   });
 
+  // Resolve which session a command/message targets: reply -> that session,
+  // otherwise the most recent one.
+  const resolveTarget = (ctx: any) => {
+    const replyId = ctx.message?.reply_to_message?.message_id;
+    return (replyId && sessionForMessage(replyId)) || mostRecentSession();
+  };
+
+  // /mute [durata]  — mute the targeted project (e.g. /mute 2h). No arg = forever.
+  bot.command("mute", async (ctx) => {
+    const target = resolveTarget(ctx);
+    if (!target) return void ctx.reply("Nessuna sessione da mutare");
+
+    const arg = ctx.match.trim();
+    const ttl = arg ? parseDuration(arg) : undefined;
+    if (arg && ttl === null) return void ctx.reply("Durata non valida (es. 30m, 2h, 1d)");
+
+    mute(target.cwd, ttl ?? undefined);
+    const dur = ttl ? `per ${arg}` : "a tempo indeterminato";
+    await ctx.reply(`🔇 ${basename(target.cwd)} — muto ${dur}`);
+  });
+
+  // /unmute — unmute the targeted project.
+  bot.command("unmute", async (ctx) => {
+    const target = resolveTarget(ctx);
+    if (!target) return void ctx.reply("Nessuna sessione");
+    const was = unmute(target.cwd);
+    await ctx.reply(was ? `🔔 ${basename(target.cwd)} — riattivato` : "Non era mutato");
+  });
+
+  // /muted — list currently muted projects.
+  bot.command("muted", async (ctx) => {
+    const list = listMuted();
+    if (!list.length) return void ctx.reply("Nessun progetto mutato");
+    const lines = list.map((m) => {
+      const when = m.until === Infinity ? "∞" : new Date(m.until).toLocaleTimeString("it-IT");
+      return `🔇 ${basename(m.cwd)} → ${when}`;
+    });
+    await ctx.reply(lines.join("\n"));
+  });
+
   // Free text: a reply to a notification targets that session; a bare message
   // targets the most recent session. Sends the text as a prompt.
   bot.on("message:text", async (ctx) => {
     const text = ctx.message.text;
-    const replyId = ctx.message.reply_to_message?.message_id;
-    const target = (replyId && sessionForMessage(replyId)) || mostRecentSession();
+    if (text.startsWith("/")) return; // commands handled above
 
+    const target = resolveTarget(ctx);
     if (!target) {
       await ctx.reply("Nessuna sessione nota");
       return;

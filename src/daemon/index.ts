@@ -5,6 +5,7 @@ import { upsertSession } from "../registry.ts";
 import { initBot, pushAttention } from "../bot/index.ts";
 import { lastAssistantText, lastToolUse } from "../transcript.ts";
 import { readProjectConfig } from "../project-config.ts";
+import { isMuted } from "../mute.ts";
 
 // Fase 1: HTTP daemon that receives detection events from the notify.sh hook.
 
@@ -71,9 +72,9 @@ const server = createServer(async (req, res) => {
       message: session.lastMessage,
     });
 
-    // Per-project overrides (.mycli.json) applied before pushing.
+    // Per-project overrides (.mycli.json) + runtime mute applied before pushing.
     const pcfg = readProjectConfig(session.cwd);
-    if (pcfg.mute) {
+    if (pcfg.mute || isMuted(session.cwd)) {
       console.log("[mute]", session.cwd);
     } else {
       // Fire-and-forget push; never block the hook response.
