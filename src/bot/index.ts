@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { Bot, InlineKeyboard } from "grammy";
 import { actionKeys } from "../config.ts";
-import { RISK_ICON, riskFor } from "../classify.ts";
+import { RISK_ICON, RISK_RANK, riskFor, type Risk } from "../classify.ts";
 import {
   linkMessage,
   mostRecentSession,
@@ -16,6 +16,9 @@ import { paneAlive, sendKey, sendPrompt } from "../tmux.ts";
 
 let bot: Bot | null = null;
 let chatId: string | null = null;
+// Chats allowed as notification targets and as command sources: the default
+// chat plus TELEGRAM_ALLOWED_CHATS (csv). Guards per-project chatId overrides.
+const allowedChats = new Set<string>();
 
 export function initBot(): boolean {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -26,11 +29,16 @@ export function initBot(): boolean {
     return false;
   }
 
+  allowedChats.clear();
+  allowedChats.add(chatId);
+  for (const id of (process.env.TELEGRAM_ALLOWED_CHATS ?? "").split(","))
+    if (id.trim()) allowedChats.add(id.trim());
+
   bot = new Bot(token);
 
-  // Whitelist: ignore anything not from the authorized chat.
+  // Whitelist: ignore anything not from an allowed chat.
   bot.use(async (ctx, next) => {
-    if (String(ctx.chat?.id) !== chatId) return;
+    if (!allowedChats.has(String(ctx.chat?.id))) return;
     await next();
   });
 
@@ -86,10 +94,25 @@ const DEDUPE_MS = 90_000;
 const CMD_MAX = 200; // truncate long commands in the message
 const lastPush = new Map<string, number>(); // key: sessionId::message
 
-export async function pushAttention(s: SessionInfo): Promise<void> {
+export interface PushOptions {
+  chatId?: string; // per-project target override (must be in allowedChats)
+  minRisk?: Risk; // skip notifications below this risk level
+}
+
+export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Promise<void> {
   if (!bot || !chatId) return;
 
-  const key = `${s.sessionId}::${s.lastMessage}`;
+  const risk = s.toolName ? riskFor(s.toolName, s.command) : "caution";
+  if (opts.minRisk && RISK_RANK[risk] < RISK_RANK[opts.minRisk]) return;
+
+  // Resolve target: honor a per-project override only if allow-listed.
+  let target = chatId;
+  if (opts.chatId) {
+    if (allowedChats.has(opts.chatId)) target = opts.chatId;
+    else console.warn(`[bot] chatId ${opts.chatId} non in allowlist — uso default`);
+  }
+
+  const key = `${s.sessionId}::${target}::${s.lastMessage}`;
   const now = Date.now();
   const prev = lastPush.get(key) ?? 0;
   if (now - prev < DEDUPE_MS) return;
@@ -105,13 +128,12 @@ export async function pushAttention(s: SessionInfo): Promise<void> {
 
   // Tool awaiting permission, prefixed with its risk icon.
   if (s.toolName) {
-    const icon = RISK_ICON[riskFor(s.toolName, s.command)];
     const cmd = s.command ? `: \`${escapeMd(truncate(s.command, CMD_MAX))}\`` : "";
-    text += `\n\n${icon} *${escapeMd(s.toolName)}*${cmd}`;
+    text += `\n\n${RISK_ICON[risk]} *${escapeMd(s.toolName)}*${cmd}`;
   }
   if (s.detail) text += `\n\n💬 ${escapeMd(truncate(s.detail, 400))}`;
 
-  const sent = await bot.api.sendMessage(chatId, text, {
+  const sent = await bot.api.sendMessage(target, text, {
     parse_mode: "MarkdownV2",
     reply_markup: kb,
   });

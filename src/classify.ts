@@ -9,6 +9,12 @@ export const RISK_ICON: Record<Risk, string> = {
   danger: "🔴",
 };
 
+export const RISK_RANK: Record<Risk, number> = {
+  safe: 0,
+  caution: 1,
+  danger: 2,
+};
+
 // Patterns scanned against the whole command string (covers pipes and && chains).
 const DANGER: RegExp[] = [
   /\brm\b/, // remove

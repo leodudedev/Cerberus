@@ -4,6 +4,7 @@ import { profileFromConfigDir } from "../profile.ts";
 import { upsertSession } from "../registry.ts";
 import { initBot, pushAttention } from "../bot/index.ts";
 import { lastAssistantText, lastToolUse } from "../transcript.ts";
+import { readProjectConfig } from "../project-config.ts";
 
 // Fase 1: HTTP daemon that receives detection events from the notify.sh hook.
 
@@ -70,8 +71,16 @@ const server = createServer(async (req, res) => {
       message: session.lastMessage,
     });
 
-    // Fire-and-forget push; never block the hook response.
-    void pushAttention(session).catch((e) => console.error("[bot] push failed", e));
+    // Per-project overrides (.mycli.json) applied before pushing.
+    const pcfg = readProjectConfig(session.cwd);
+    if (pcfg.mute) {
+      console.log("[mute]", session.cwd);
+    } else {
+      // Fire-and-forget push; never block the hook response.
+      void pushAttention(session, { chatId: pcfg.chatId, minRisk: pcfg.minRisk }).catch(
+        (e) => console.error("[bot] push failed", e),
+      );
+    }
 
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
