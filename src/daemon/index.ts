@@ -72,7 +72,7 @@ const server = createServer(async (req, res) => {
       message: session.lastMessage,
     });
 
-    // Per-project overrides (.mycli.json) + runtime mute applied before pushing.
+    // Per-project overrides (.cerberus.json) + runtime mute applied before pushing.
     const pcfg = readProjectConfig(session.cwd);
     if (pcfg.mute || isMuted(session.cwd)) {
       console.log("[mute]", session.cwd);

@@ -4,8 +4,8 @@ const [cmd] = process.argv.slice(2);
 
 switch (cmd) {
   case "version":
-    console.log("mycli 0.1.0");
+    console.log("cerberus 0.1.0");
     break;
   default:
-    console.log("mycli — comandi: version (altri in arrivo)");
+    console.log("cerberus — comandi: version (altri in arrivo)");
 }

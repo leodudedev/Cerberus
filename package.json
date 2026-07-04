@@ -1,11 +1,11 @@
 {
-  "name": "mycli",
+  "name": "cerberus",
   "version": "0.1.0",
   "description": "Remote control per sessioni Claude Code multi-account via tmux + Telegram",
   "type": "module",
   "private": true,
   "bin": {
-    "mycli": "./src/bin/mycli.ts"
+    "cerberus": "./src/bin/cerberus.ts"
   },
   "scripts": {
     "dev": "node --env-file=.env --watch src/daemon/index.ts",

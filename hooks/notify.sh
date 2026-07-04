@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mycli notification hook.
+# cerberus notification hook.
 # Claude Code runs this for the `Notification` event, from inside the tmux pane,
 # so it inherits $TMUX_PANE and $CLAUDE_CONFIG_DIR. Forwards the raw hook payload
 # plus that context to the local daemon.
@@ -13,7 +13,7 @@ EOF
 )
 
 # Fire-and-forget: background the request, cap it at 3s, swallow all errors.
-curl -s -m 3 -X POST "http://127.0.0.1:${MYCLI_PORT:-8787}/event" \
+curl -s -m 3 -X POST "http://127.0.0.1:${CERBERUS_PORT:-8787}/event" \
   -H 'content-type: application/json' \
   -d "$body" >/dev/null 2>&1 &
 

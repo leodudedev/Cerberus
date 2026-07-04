@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import type { Risk } from "./classify.ts";
 
 // Per-project overrides read by the daemon before pushing a notification.
-// Lives in `.mycli.json` at (or above) the session cwd. Best-effort: any
+// Lives in `.cerberus.json` at (or above) the session cwd. Best-effort: any
 // problem yields empty overrides and never blocks a notification.
 
 export interface ProjectConfig {
@@ -13,7 +13,7 @@ export interface ProjectConfig {
   minRisk?: Risk;
 }
 
-const FILENAME = ".mycli.json";
+const FILENAME = ".cerberus.json";
 const cache = new Map<string, { mtimeMs: number; cfg: ProjectConfig }>();
 
 // Walk up from cwd to $HOME looking for the nearest config file.

@@ -1,4 +1,4 @@
-// Runtime mute-set, keyed by project cwd. Complements the static .mycli.json
+// Runtime mute-set, keyed by project cwd. Complements the static .cerberus.json
 // mute: this one is toggled live (e.g. from Telegram) and supports a TTL.
 // In-memory only — cleared on daemon restart.
 

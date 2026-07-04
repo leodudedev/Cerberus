@@ -1,10 +1,10 @@
-# mycli — Remote control per Claude Code (multi-account)
+# Cerberus — Remote control per Claude Code (multi-account)
 
 Scope MVP: **solo Claude Code**, sessioni su account diversi, controllo da cellulare.
 Multi-agent (aider, ecc.) rimandato.
 
 Le sessioni si lanciano con gli **alias shrc esistenti** (uno per account, già
-funzionanti). mycli non gestisce il lancio. Unico vincolo: lanciare l'alias **dentro
+funzionanti). Cerberus non gestisce il lancio. Unico vincolo: lanciare l'alias **dentro
 un pane tmux** — serve per `send-keys`.
 
 ## Obiettivo
@@ -40,7 +40,7 @@ Ogni config dir ha il suo `settings.json` → gli hook vanno installati in entra
 └────────────────────┘     └─────────────────┘     └────────────────┘
 ```
 
-- **Lancio sessioni**: alias shrc esistenti, dentro un pane tmux. Fuori scope mycli.
+- **Lancio sessioni**: alias shrc esistenti, dentro un pane tmux. Fuori scope Cerberus.
 - **Hooks** (in entrambi i settings.json): Notification + Stop → POST al daemon
   con `session_id`, `cwd`, `$TMUX_PANE`, `message`, `profile`.
 - **Daemon** node: riceve eventi, mantiene mappa pane↔session, dedup, push Telegram.
@@ -81,7 +81,7 @@ arbitrario. Mapping `chat/message → pane`. Alternativa ntfy.sh scartata: reply
 - [ ] Verifica: approvo dal telefono → tool procede sul Mac
 
 ### Fase 4 — Usabilità
-- [ ] `mycli ls`: lista sessioni attive (da registry) con stato
+- [ ] `cerberus ls`: lista sessioni attive (da registry) con stato
 - [ ] Prompt push arbitrario verso una sessione scelta (non solo risposta a notifica)
 - [ ] Stop hook → notifica "sessione finita / attende"
 - [ ] Gestione pane morto / sessione riavviata (cleanup registry)
