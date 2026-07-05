@@ -200,17 +200,31 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
   const folder = basename(s.cwd) || s.cwd;
   let text = `${iconForProject(folder)} *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
 
-  // Tool awaiting permission, prefixed with its risk icon.
+  // Tool awaiting permission, prefixed with its risk icon. Inline code spans
+  // cannot contain newlines in MarkdownV2: flatten multiline commands.
   if (s.toolName) {
-    const cmd = s.command ? `: \`${escapeCode(truncate(s.command, CMD_MAX))}\`` : "";
+    const flat = s.command.replace(/\s*\n\s*/g, " ⏎ ");
+    const cmd = flat ? `: \`${escapeCode(truncate(flat, CMD_MAX))}\`` : "";
     text += `\n\n${RISK_ICON[risk]} *${escapeMd(s.toolName)}*${cmd}`;
   }
   if (s.detail) text += `\n\n💬 ${escapeMd(truncate(s.detail, 400))}`;
 
-  const sent = await bot.api.sendMessage(target, text, {
-    parse_mode: "MarkdownV2",
-    reply_markup: kb,
-  });
+  let sent;
+  try {
+    sent = await bot.api.sendMessage(target, text, {
+      parse_mode: "MarkdownV2",
+      reply_markup: kb,
+    });
+  } catch (e) {
+    // Never lose a notification to formatting: retry as plain text.
+    console.error("[bot] markdown push failed, retrying plain:", (e as Error).message);
+    const flatCmd = s.command.replace(/\s*\n\s*/g, " ⏎ ");
+    const plain =
+      `${iconForProject(folder)} ${cap(s.profile)} · ${folder}\n${s.lastMessage}` +
+      (s.toolName ? `\n\n${RISK_ICON[risk]} ${s.toolName}: ${truncate(flatCmd, CMD_MAX)}` : "") +
+      (s.detail ? `\n\n💬 ${truncate(s.detail, 400)}` : "");
+    sent = await bot.api.sendMessage(target, plain, { reply_markup: kb });
+  }
   // Link the message so a reply routes back to this session.
   linkMessage(sent.message_id, s.sessionId);
 }
