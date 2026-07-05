@@ -11,6 +11,7 @@ import {
 } from "../registry.ts";
 import { paneAlive, sendKey, sendPrompt } from "../tmux.ts";
 import { mute, unmute, listMuted, parseDuration } from "../mute.ts";
+import { iconForProject } from "../icon.ts";
 
 // Telegram layer: push attention events, and route replies/buttons back to the
 // originating tmux pane via send-keys.
@@ -197,7 +198,7 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
     : undefined;
 
   const folder = basename(s.cwd) || s.cwd;
-  let text = `🔔 *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
+  let text = `${iconForProject(folder)} *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
 
   // Tool awaiting permission, prefixed with its risk icon.
   if (s.toolName) {
