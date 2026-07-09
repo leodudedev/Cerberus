@@ -26,6 +26,8 @@ notify.sh (hook, in pane) --POST /event--> daemon --> Telegram bot --> phone
 
 - `hooks/notify.sh` — Claude Code Notification hook. Runs inside the pane,
   forwards the hook payload + `$TMUX_PANE` + `$CLAUDE_CONFIG_DIR` to the daemon.
+  Registered via `hooks/claude-hooks.template.json`, merged into each
+  `CLAUDE_CONFIG_DIR`'s `settings.json` (not a drop-in copy like Copilot's).
 - `hooks/copilot-notify.sh` — Copilot CLI hook (`notification` + `preToolUse`),
   installed via `hooks/copilot-hooks.template.json` → `~/.copilot/hooks/`.
   Must always exit 0 (non-zero on preToolUse = Copilot denies the tool).

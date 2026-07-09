@@ -1,6 +1,9 @@
 # 🐕‍🦺 Cerberus
 
-**Remote control for Claude Code and GitHub Copilot CLI sessions — from your phone.**
+**Manage and approve Claude Code and GitHub Copilot CLI sessions remotely from your phone via Telegram and tmux.**
+
+> Your company won't enable remote control? No problem — Cerberus is your
+> three-headed guard dog, and it works the night shift for free. 🐕‍🦺
 
 Run your AI coding sessions inside `tmux`. When a session needs you — a
 permission prompt, waiting for input — Cerberus pushes a Telegram notification.
@@ -8,14 +11,23 @@ From your phone you **approve / deny**, or **type a prompt** that lands in the
 right session. Every pending command is tagged with a risk icon
 🟢 🟡 🔴 so you know what you're approving.
 
-```
-┌─ tmux ──────────────────┐    ┌─ cerberus daemon ─┐    ┌─ Telegram ─┐
-│ pane %3  claude         │    │  127.0.0.1:9666   │    │            │
-│  └ notify.sh ───────────┼───▶│                   │    │            │
-│ pane %5  copilot        │    │   enrich + push   ├───▶│ 🔔 + 🟢🟡🔴 │
-│  └ copilot-notify.sh ───┼───▶│                   │    │  buttons   │
-│                         │◀───┤  tmux send-keys   │◀───┤  tap/reply │
-└─────────────────────────┘    └───────────────────┘    └────────────┘
+```mermaid
+flowchart LR
+    subgraph tmux
+        A["pane %3 · claude<br/>└ notify.sh"]
+        B["pane %5 · copilot<br/>└ copilot-notify.sh"]
+    end
+    subgraph daemon["cerberus daemon"]
+        D["127.0.0.1:9666<br/>enrich + push"]
+    end
+    subgraph tg["Telegram"]
+        T["🔔 + 🟢🟡🔴<br/>buttons · tap/reply"]
+    end
+
+    A -- "POST /event" --> D
+    B -- "POST /event" --> D
+    D -- push --> T
+    T -- "tmux send-keys" --> tmux
 ```
 
 ---
@@ -88,8 +100,15 @@ To get your chat id: DM your bot `/start`, then call
 ## Hook setup — Claude Code (once per account)
 
 Cerberus needs its `Notification` hook registered in **each** Claude Code
-config directory you use (one per account). Add to `settings.json` in every
-`CLAUDE_CONFIG_DIR` (default `~/.claude`):
+config directory you use (one per account). Merge the snippet from
+`hooks/claude-hooks.template.json` into `settings.json` in every
+`CLAUDE_CONFIG_DIR` (default `~/.claude`). Bake in the absolute path first:
+
+```bash
+sed "s|__CERBERUS_DIR__|$PWD|g" hooks/claude-hooks.template.json
+```
+
+The template contains:
 
 ```json
 {
@@ -100,7 +119,7 @@ config directory you use (one per account). Add to `settings.json` in every
         "hooks": [
           {
             "type": "command",
-            "command": "/absolute/path/to/cerberus/hooks/notify.sh"
+            "command": "__CERBERUS_DIR__/hooks/notify.sh"
           }
         ]
       }
@@ -110,7 +129,8 @@ config directory you use (one per account). Add to `settings.json` in every
 ```
 
 If the file already has a `hooks` object, add only the `"Notification"` key
-inside it — don't overwrite existing hooks.
+inside it — don't overwrite existing hooks. (Unlike Copilot, Claude Code
+merges into an existing `settings.json`, so this can't be a drop-in copy.)
 
 ## Hook setup — GitHub Copilot CLI (once)
 
@@ -296,6 +316,7 @@ fall back to a read-vs-write heuristic).
 
 ```
 hooks/notify.sh                     Claude Code Notification hook (curls the daemon)
+hooks/claude-hooks.template.json    Claude hook config template (→ settings.json)
 hooks/copilot-notify.sh             Copilot CLI hook (notification + preToolUse)
 hooks/copilot-hooks.template.json   Copilot hook config template (→ ~/.copilot/hooks/)
 src/daemon/index.ts                 HTTP intake + per-agent enrichment + push
