@@ -53,8 +53,16 @@ export function initBot(): boolean {
       return;
     }
     const s = sessionId ? getSession(sessionId) : undefined;
-    // Keymap depends on the agent: Claude and Copilot dialogs differ.
-    const keys = s && action ? actionKeysFor(s.agent)[action] : undefined;
+    // `optN` = pick the Nth option of an AskUserQuestion dialog (digit + Enter);
+    // everything else is a fixed keymap that depends on the agent.
+    const optMatch = action ? /^opt(\d+)$/.exec(action) : null;
+    const keys = !s
+      ? undefined
+      : optMatch
+        ? [optMatch[1], "Enter"]
+        : action
+          ? actionKeysFor(s.agent)[action]
+          : undefined;
 
     if (!s || !keys) {
       await ctx.answerCallbackQuery({ text: "Sessione non trovata" });
@@ -75,10 +83,11 @@ export function initBot(): boolean {
 
     // Mark the message as handled: swap the buttons for a single inert label so
     // it's obvious at a glance which action was taken, and re-taps are no-ops.
-    const label =
-      { approve: "✅ Approvato", always: "♾️ Sempre", deny: "❌ Negato", esc: "⎋ Annullato" }[
-        action
-      ] ?? action;
+    const label = optMatch
+      ? `✅ Opzione ${optMatch[1]}`
+      : { approve: "✅ Approvato", always: "♾️ Sempre", deny: "❌ Negato", esc: "⎋ Annullato" }[
+          action
+        ] ?? action;
     const when = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
     try {
       await ctx.editMessageReplyMarkup({
@@ -211,17 +220,7 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
   pruneLastPush(now);
   lastPush.set(key, now);
 
-  // Buttons only on permission requests: on "waiting for input" there is no
-  // dialog to confirm and a tap would type into the session's prompt.
-  // The flag is computed by the daemon (per-agent detection).
-  const kb = s.isPermission
-    ? new InlineKeyboard()
-        .text("✅ Approva", `approve:${s.sessionId}`)
-        .text("♾️ Sempre", `always:${s.sessionId}`)
-        .row()
-        .text("❌ Nega", `deny:${s.sessionId}`)
-        .text("⎋ Esc", `esc:${s.sessionId}`)
-    : undefined;
+  const kb = buildKeyboard(s);
 
   const folder = basename(s.cwd) || s.cwd;
   let text = `${iconForProject(folder)} *${escapeMd(cap(s.profile))}* · \`${escapeCode(folder)}\`\n${escapeMd(s.lastMessage)}`;
@@ -264,6 +263,35 @@ function cap(s: string): string {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+// Tools whose permission dialog reliably offers "yes, and don't ask again" as
+// option 2 — only then is the "Sempre" button (digit 2) safe. On a plain
+// yes/no dialog, digit 2 would mean "No", so we omit it there.
+const ALWAYS_OK = new Set(["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "WebFetch"]);
+
+function buildKeyboard(s: SessionInfo): InlineKeyboard | undefined {
+  // AskUserQuestion: one button per real answer (digit + Enter). The user can
+  // still reply with free text for the implicit "Other" option.
+  if (s.options.length > 0) {
+    const kb = new InlineKeyboard();
+    s.options.forEach((label, i) => {
+      kb.text(`${i + 1}. ${truncate(label, 28)}`, `opt${i + 1}:${s.sessionId}`).row();
+    });
+    kb.text("⎋ Annulla", `esc:${s.sessionId}`);
+    return kb;
+  }
+  // Standard permission dialog. Buttons only here: on "waiting for input" a tap
+  // would type into the session's prompt.
+  if (s.isPermission) {
+    const kb = new InlineKeyboard().text("✅ Approva", `approve:${s.sessionId}`);
+    if (ALWAYS_OK.has(s.toolName) || s.toolName.startsWith("mcp__")) {
+      kb.text("♾️ Sempre", `always:${s.sessionId}`);
+    }
+    kb.row().text("❌ Nega", `deny:${s.sessionId}`).text("⎋ Esc", `esc:${s.sessionId}`);
+    return kb;
+  }
+  return undefined;
 }
 
 // Keep the END of a long string — recaps put the actionable summary last, so

@@ -54,6 +54,25 @@ const COPILOT_NOTIFY_TYPES = new Set([
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Pull the answer labels out of an AskUserQuestion tool_input so the bot can
+// render one button per real option. Only the simple single-question,
+// single-select shape is supported; anything else falls back to no options
+// (the user can still reply with free text), because multi-select and
+// multi-question dialogs need more than a single "digit + Enter" keystroke.
+function extractQuestionOptions(toolName: string, input: unknown): string[] | undefined {
+  if (toolName !== "AskUserQuestion" || !input || typeof input !== "object") return undefined;
+  const qs = (input as { questions?: unknown }).questions;
+  if (!Array.isArray(qs) || qs.length !== 1) return undefined;
+  const q = qs[0] as { multiSelect?: boolean; options?: unknown };
+  if (q?.multiSelect) return undefined;
+  if (!Array.isArray(q?.options)) return undefined;
+  const labels = q.options
+    .map((o) => String((o as { label?: unknown })?.label ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return labels.length ? labels : undefined;
+}
+
 async function readJson(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
@@ -103,7 +122,8 @@ const server = createServer(async (req, res) => {
     if (agent === "claude" && hook.hook_event_name === "PreToolUse") {
       const name = String(hook.tool_name ?? "");
       const command = summarizeToolArgs(hook.tool_input);
-      putPendingTool(sessionId, name, command);
+      const options = extractQuestionOptions(name, hook.tool_input);
+      putPendingTool(sessionId, name, command, options);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -128,16 +148,26 @@ const server = createServer(async (req, res) => {
     //  - Copilot: no transcript — tool + input from the preToolUse cache too.
     let detail = "";
     let tool: ToolUse | null = null;
+    let options: string[] = [];
     if (agent === "claude") {
       detail = await lastAssistantText(hook.transcript_path);
     }
-    if (isPermission) {
-      // The PreToolUse event and the permission notification race on two HTTP
-      // requests: retry once if the cache hasn't been populated yet.
-      tool = peekPendingTool(sessionId);
-      if (!tool) {
+    // Attach the pending tool when a permission is being asked, or when a fresh
+    // AskUserQuestion is pending (it's an elicitation, not a "permission", but
+    // its options still deserve per-option buttons). Freshness guards against
+    // showing a stale tool on an idle recap.
+    let pend = peekPendingTool(sessionId);
+    const freshQuestion =
+      !!pend && pend.name === "AskUserQuestion" && Date.now() - pend.ts < 4000;
+    if (isPermission || freshQuestion) {
+      // PreToolUse and the notification race on two HTTP requests: retry once.
+      if (!pend) {
         await sleep(300);
-        tool = peekPendingTool(sessionId);
+        pend = peekPendingTool(sessionId);
+      }
+      if (pend) {
+        tool = pend;
+        options = pend.options ?? [];
       }
     }
 
@@ -150,8 +180,9 @@ const server = createServer(async (req, res) => {
       cwd: hook.cwd ?? "",
       lastMessage: message,
       detail,
-      toolName: isPermission ? tool?.name ?? "" : "",
-      command: isPermission ? tool?.command ?? "" : "",
+      toolName: tool?.name ?? "",
+      command: tool?.command ?? "",
+      options,
       isPermission,
     });
     console.log("[event]", {

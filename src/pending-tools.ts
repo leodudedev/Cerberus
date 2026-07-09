@@ -9,6 +9,7 @@
 export interface PendingTool {
   name: string;
   command: string; // shell command or input summary
+  options?: string[]; // AskUserQuestion option labels, for per-option buttons
   ts: number;
 }
 
@@ -21,11 +22,16 @@ function sweep(now: number): void {
   for (const [k, t] of pending) if (now - t.ts > TTL_MS) pending.delete(k);
 }
 
-export function putPendingTool(sessionId: string, name: string, command: string): void {
+export function putPendingTool(
+  sessionId: string,
+  name: string,
+  command: string,
+  options?: string[],
+): void {
   if (!sessionId) return;
   const now = Date.now();
   sweep(now);
-  pending.set(sessionId, { name, command, ts: now });
+  pending.set(sessionId, { name, command, options, ts: now });
 }
 
 export function peekPendingTool(sessionId: string): PendingTool | null {

@@ -16,6 +16,7 @@ export interface SessionInfo {
   detail: string; // last assistant text from the transcript (the actual question)
   toolName: string; // tool awaiting permission (e.g. "Bash"), "" if none
   command: string; // command / input summary of that tool
+  options: string[]; // AskUserQuestion answer labels → per-option buttons
   isPermission: boolean; // event was a permission request (buttons make sense)
   lastSeen: number;
 }
