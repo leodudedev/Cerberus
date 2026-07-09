@@ -385,4 +385,4 @@ Telegram return 409.
 
 Claude Code (multi-account) + GitHub Copilot CLI, side by side: push + remote
 approve/deny/prompt, risk classifier, per-project config, runtime mute.
-Runtime mute is in-memory (cleared on restart). See `ROADMAP.md`.
+Runtime mute is in-memory (cleared on restart).

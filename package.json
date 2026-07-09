@@ -1,7 +1,7 @@
 {
   "name": "cerberus",
   "version": "0.1.0",
-  "description": "Remote control per sessioni Claude Code multi-account via tmux + Telegram",
+  "description": "Remote control for Claude Code and GitHub Copilot CLI sessions from your phone, via Telegram and tmux",
   "type": "module",
   "private": true,
   "license": "MIT",
