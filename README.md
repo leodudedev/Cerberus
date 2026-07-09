@@ -1,28 +1,18 @@
 <div align="center">
 
-<pre>
-█████ █████ ████  ████  █████ ████  █   █ █████
-█     █     █   █ █   █ █     █   █ █   █ █    
-█     ████  ████  ████  ████  ████  █   █ █████
-█     █     █  █  █   █ █     █  █  █   █     █
-█████ █████ █   █ ████  █████ █   █ █████ █████
-</pre>
+# 🐕‍🦺 Cerberus
 
-### 🐕‍🦺 Remote control for your AI coding sessions
+**Remote control for your AI coding sessions** — approve, deny, or prompt Claude Code &amp; GitHub Copilot CLI from your phone, over Telegram, straight into tmux.
 
-**Approve, deny, or prompt Claude Code &amp; GitHub Copilot CLI from your phone — over Telegram, straight into tmux.**
+<sub>permission prompts · waiting-for-input · risk-tagged commands · multi-account · local-first</sub>
 
-permission prompts · waiting-for-input · risk-tagged commands · multi-account · local-first
-
-<br>
-
+![CI](https://img.shields.io/github/actions/workflow/status/leodudedev/Cerberus/ci.yml?branch=main&label=CI&logo=github)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Node.js ≥22.18](https://img.shields.io/badge/Node.js-%E2%89%A522.18-5FA04E?logo=nodedotjs&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
 ![Telegram](https://img.shields.io/badge/Telegram-26A5E4?logo=telegram&logoColor=white)
 ![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=black)
-![no build step](https://img.shields.io/badge/build-none%20(Node%20native%20TS)-blue)
-![agents](https://img.shields.io/badge/agents-Claude%20Code%20%2B%20Copilot%20CLI-8A2BE2)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
 
 [Install](#install) · [How it works](#how-it-works) · [Config](#per-project-config--cerberusjson) · [Security](#security)
 

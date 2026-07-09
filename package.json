@@ -4,6 +4,7 @@
   "description": "Remote control per sessioni Claude Code multi-account via tmux + Telegram",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "engines": {
     "node": ">=22.18"
   },
