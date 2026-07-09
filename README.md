@@ -18,7 +18,7 @@ flowchart LR
         B["pane %5 · copilot<br/>└ copilot-notify.sh"]
     end
     subgraph daemon["cerberus daemon"]
-        D["127.0.0.1:9666<br/>enrich + push"]
+        D["127.0.0.1:8899<br/>enrich + push"]
     end
     subgraph tg["Telegram"]
         T["🔔 + 🟢🟡🔴<br/>buttons · tap/reply"]
@@ -51,7 +51,7 @@ each notification routes back to its own tmux pane.
      Copilot's notification payload doesn't include it.
 2. The hook runs **inside the tmux pane**, so it inherits `$TMUX_PANE` (and,
    for Claude, `$CLAUDE_CONFIG_DIR`). It POSTs the event to the local
-   **daemon** (`127.0.0.1:9666`).
+   **daemon** (`127.0.0.1:8899`).
 3. The daemon enriches the event — for Claude it reads the session transcript
    (pending tool + last assistant message), for Copilot it reads the
    `preToolUse` cache — classifies the risk, and pushes a **Telegram** message.
@@ -107,7 +107,7 @@ cp .env.example .env   # fill it in (see below)
 TELEGRAM_BOT_TOKEN=123456:ABC...   # from @BotFather (step 1)
 TELEGRAM_CHAT_ID=123456789         # your chat id (step 3)
 TELEGRAM_ALLOWED_CHATS=            # optional extra chats/groups (csv), for routing
-PORT=9666                          # daemon port (loopback only)
+PORT=8899                          # daemon port (loopback only)
 ```
 
 ---

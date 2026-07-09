@@ -12,6 +12,7 @@ import {
 import { paneAlive, sendKey, sendPrompt } from "../tmux.ts";
 import { mute, unmute, listMuted, parseDuration } from "../mute.ts";
 import { iconForProject } from "../icon.ts";
+import { t, timeLocale } from "../i18n.ts";
 
 // Telegram layer: push attention events, and route replies/buttons back to the
 // originating tmux pane via send-keys.
@@ -49,7 +50,7 @@ export function initBot(): boolean {
     const [action, sessionId] = ctx.callbackQuery.data.split(":");
     // Inert marker button left after a handled message: nothing to do.
     if (action === "noop") {
-      await ctx.answerCallbackQuery({ text: "Già gestito" });
+      await ctx.answerCallbackQuery({ text: t.handled });
       return;
     }
     const s = sessionId ? getSession(sessionId) : undefined;
@@ -65,17 +66,17 @@ export function initBot(): boolean {
           : undefined;
 
     if (!s || !keys) {
-      await ctx.answerCallbackQuery({ text: "Sessione non trovata" });
+      await ctx.answerCallbackQuery({ text: t.noSession });
       return;
     }
     // Stale-tap guard: past the TTL the dialog is likely gone and the
     // keystroke would land in the session's input instead.
     if (Date.now() - s.lastSeen > ACTION_TTL_MS) {
-      await ctx.answerCallbackQuery({ text: "Scaduto — richiesta troppo vecchia" });
+      await ctx.answerCallbackQuery({ text: t.expired });
       return;
     }
     if (!(await paneAlive(s.pane))) {
-      await ctx.answerCallbackQuery({ text: `Pane ${s.pane} non attivo` });
+      await ctx.answerCallbackQuery({ text: t.paneDead(s.pane) });
       return;
     }
 
@@ -84,11 +85,11 @@ export function initBot(): boolean {
     // Mark the message as handled: swap the buttons for a single inert label so
     // it's obvious at a glance which action was taken, and re-taps are no-ops.
     const label = optMatch
-      ? `✅ Opzione ${optMatch[1]}`
-      : { approve: "✅ Approvato", always: "♾️ Sempre", deny: "❌ Negato", esc: "⎋ Annullato" }[
+      ? t.markOption(optMatch[1]!)
+      : { approve: t.markApproved, always: t.markAlways, deny: t.markDenied, esc: t.markCancelled }[
           action
         ] ?? action;
-    const when = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    const when = new Date().toLocaleTimeString(timeLocale, { hour: "2-digit", minute: "2-digit" });
     try {
       await ctx.editMessageReplyMarkup({
         reply_markup: new InlineKeyboard().text(`${label} · ${when}`, `noop:${sessionId}`),
@@ -109,32 +110,32 @@ export function initBot(): boolean {
   // /mute [durata]  — mute the targeted project (e.g. /mute 2h). No arg = forever.
   bot.command("mute", async (ctx) => {
     const target = resolveTarget(ctx);
-    if (!target) return void ctx.reply("Nessuna sessione da mutare");
+    if (!target) return void ctx.reply(t.noSessionToMute);
 
     const arg = ctx.match.trim();
     const ttl = arg ? parseDuration(arg) : undefined;
-    if (arg && ttl === null) return void ctx.reply("Durata non valida (es. 30m, 2h, 1d)");
+    if (arg && ttl === null) return void ctx.reply(t.badDuration);
 
     mute(target.cwd, ttl ?? undefined);
-    const dur = ttl ? `per ${arg}` : "a tempo indeterminato";
-    await ctx.reply(`🔇 ${basename(target.cwd)} — muto ${dur}`);
+    const dur = ttl ? t.muteFor(arg) : t.muteForever;
+    await ctx.reply(t.muted(basename(target.cwd), dur));
   });
 
   // /unmute — unmute the targeted project.
   bot.command("unmute", async (ctx) => {
     const target = resolveTarget(ctx);
-    if (!target) return void ctx.reply("Nessuna sessione");
+    if (!target) return void ctx.reply(t.noSession2);
     const was = unmute(target.cwd);
-    await ctx.reply(was ? `🔔 ${basename(target.cwd)} — riattivato` : "Non era mutato");
+    await ctx.reply(was ? t.unmuted(basename(target.cwd)) : t.wasNotMuted);
   });
 
   // /muted — list currently muted projects.
   bot.command("muted", async (ctx) => {
     const list = listMuted();
-    if (!list.length) return void ctx.reply("Nessun progetto mutato");
+    if (!list.length) return void ctx.reply(t.noMutedProjects);
     const lines = list.map((m) => {
-      const when = m.until === Infinity ? "∞" : new Date(m.until).toLocaleTimeString("it-IT");
-      return `🔇 ${basename(m.cwd)} → ${when}`;
+      const when = m.until === Infinity ? "∞" : new Date(m.until).toLocaleTimeString(timeLocale);
+      return t.mutedEntry(basename(m.cwd), when);
     });
     await ctx.reply(lines.join("\n"));
   });
@@ -153,11 +154,11 @@ export function initBot(): boolean {
 
     const target = resolveTarget(ctx);
     if (!target) {
-      await ctx.reply("Nessuna sessione nota");
+      await ctx.reply(t.noKnownSession);
       return;
     }
     if (!(await paneAlive(target.pane))) {
-      await ctx.reply(`Pane ${target.pane} non attivo`);
+      await ctx.reply(t.paneDead(target.pane));
       return;
     }
 
@@ -167,7 +168,7 @@ export function initBot(): boolean {
     try {
       await ctx.react("👍");
     } catch {
-      await ctx.reply(`→ inviato a ${target.profile}`);
+      await ctx.reply(t.sentTo(target.profile));
     }
   });
 
@@ -278,17 +279,17 @@ function buildKeyboard(s: SessionInfo): InlineKeyboard | undefined {
     s.options.forEach((label, i) => {
       kb.text(`${i + 1}. ${truncate(label, 28)}`, `opt${i + 1}:${s.sessionId}`).row();
     });
-    kb.text("⎋ Annulla", `esc:${s.sessionId}`);
+    kb.text(t.btnCancel, `esc:${s.sessionId}`);
     return kb;
   }
   // Standard permission dialog. Buttons only here: on "waiting for input" a tap
   // would type into the session's prompt.
   if (s.isPermission) {
-    const kb = new InlineKeyboard().text("✅ Approva", `approve:${s.sessionId}`);
+    const kb = new InlineKeyboard().text(t.btnApprove, `approve:${s.sessionId}`);
     if (ALWAYS_OK.has(s.toolName) || s.toolName.startsWith("mcp__")) {
-      kb.text("♾️ Sempre", `always:${s.sessionId}`);
+      kb.text(t.btnAlways, `always:${s.sessionId}`);
     }
-    kb.row().text("❌ Nega", `deny:${s.sessionId}`).text("⎋ Esc", `esc:${s.sessionId}`);
+    kb.row().text(t.btnDeny, `deny:${s.sessionId}`).text(t.btnEsc, `esc:${s.sessionId}`);
     return kb;
   }
   return undefined;

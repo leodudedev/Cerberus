@@ -32,7 +32,11 @@ export function actionKeysFor(agent: Agent | undefined): Record<string, string[]
   return actionKeys[agent ?? "claude"] ?? actionKeys.claude;
 }
 
-// Default port 9666 — away from common dev ranges and from headroom (8787/8788).
+// Default port 8899 — away from common dev ranges and from headroom (8787/8788).
+// Language for the Telegram-facing strings: English by default, CERBERUS_LANG=it
+// switches to Italian. Only our own chrome is translated; text coming from the
+// CLI (assistant recap, tool command) stays in whatever language it arrives in.
 export const config = {
-  port: Number(process.env.PORT ?? 9666),
+  port: Number(process.env.PORT ?? 8899),
+  lang: (process.env.CERBERUS_LANG ?? "").toLowerCase().startsWith("it") ? "it" : "en",
 } as const;

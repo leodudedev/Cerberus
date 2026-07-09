@@ -29,7 +29,7 @@ EOF
 )
 
 # Fire-and-forget: background the request, cap it at 3s, swallow all errors.
-curl -s -m 3 -X POST "http://127.0.0.1:${CERBERUS_PORT:-9666}/event" \
+curl -s -m 3 -X POST "http://127.0.0.1:${CERBERUS_PORT:-8899}/event" \
   -H 'content-type: application/json' \
   -d "$body" >/dev/null 2>&1 &
 
