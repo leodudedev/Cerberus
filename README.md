@@ -83,17 +83,32 @@ pnpm install
 cp .env.example .env   # fill it in (see below)
 ```
 
+### Telegram bot (2 minutes)
+
+1. **Create the bot.** DM [@BotFather](https://t.me/BotFather), send
+   `/newbot`, pick a name and username. He replies with the **bot token**
+   (`123456:ABC...`) — that's your `TELEGRAM_BOT_TOKEN`.
+2. **Start a chat with your new bot.** Open its link and hit **Start** (or
+   send any message) — a bot can't message you until you've talked to it first.
+3. **Get your chat id.** Either DM [@userinfobot](https://t.me/userinfobot)
+   and read the `Id` it returns, or call
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `message.chat.id`.
+   That's your `TELEGRAM_CHAT_ID`.
+4. *(Optional)* **Group/topic routing.** To push into a group, add the bot to
+   it, send a message there, and read that chat's id from `getUpdates` (groups
+   are negative, e.g. `-1001234567890`). Add it to `TELEGRAM_ALLOWED_CHATS`.
+
+> Keep the token secret — it's full control of the bot. It lives only in
+> `.env` (git-ignored).
+
 ### Environment (`.env`)
 
 ```ini
-TELEGRAM_BOT_TOKEN=123456:ABC...   # from @BotFather
-TELEGRAM_CHAT_ID=123456789         # your chat id (from @userinfobot)
+TELEGRAM_BOT_TOKEN=123456:ABC...   # from @BotFather (step 1)
+TELEGRAM_CHAT_ID=123456789         # your chat id (step 3)
 TELEGRAM_ALLOWED_CHATS=            # optional extra chats/groups (csv), for routing
 PORT=9666                          # daemon port (loopback only)
 ```
-
-To get your chat id: DM your bot `/start`, then call
-`https://api.telegram.org/bot<TOKEN>/getUpdates` and read `message.chat.id`.
 
 ---
 
