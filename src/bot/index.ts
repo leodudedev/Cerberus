@@ -181,7 +181,10 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
     else console.warn(`[bot] chatId ${opts.chatId} non in allowlist — uso default`);
   }
 
-  const key = `${s.sessionId}::${target}::${s.lastMessage}`;
+  // Include the tool + command: Claude's permission `message` is generic
+  // ("Claude needs your permission"), so keying on it alone would collapse two
+  // different permission requests into one and suppress the second.
+  const key = `${s.sessionId}::${target}::${s.lastMessage}::${s.toolName}::${s.command}`;
   const now = Date.now();
   const prev = lastPush.get(key) ?? 0;
   if (now - prev < DEDUPE_MS) return;

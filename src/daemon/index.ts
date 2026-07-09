@@ -3,7 +3,7 @@ import { config } from "../config.ts";
 import { profileFromConfigDir, type Agent, type Profile } from "../profile.ts";
 import { upsertSession } from "../registry.ts";
 import { initBot, pushAttention } from "../bot/index.ts";
-import { lastAssistantText, lastToolUse, type ToolUse } from "../transcript.ts";
+import { lastAssistantText, type ToolUse } from "../transcript.ts";
 import { readProjectConfig } from "../project-config.ts";
 import { isMuted } from "../mute.ts";
 import { putPendingTool, peekPendingTool, summarizeToolArgs } from "../pending-tools.ts";
@@ -93,6 +93,22 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Claude Code PreToolUse: same idea as Copilot's preToolUse. The permission
+    // Notification carries neither tool_name nor tool_input, so cache the exact
+    // tool + input now and read it back when the notification arrives. This
+    // replaces the old, racy "guess the pending tool from the transcript",
+    // which returned the wrong tool on parallel batches and null when the
+    // tool_use had not been flushed yet. PreToolUse also fires inside subagents.
+    // Exit-0 with no output leaves the normal permission flow untouched.
+    if (agent === "claude" && hook.hook_event_name === "PreToolUse") {
+      const name = String(hook.tool_name ?? "");
+      const command = summarizeToolArgs(hook.tool_input);
+      putPendingTool(sessionId, name, command);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     const message = String(hook.message ?? hook.title ?? "");
     const notifyType = String(hook.notification_type ?? "");
 
@@ -106,21 +122,18 @@ const server = createServer(async (req, res) => {
     const isPermission =
       agent === "copilot" ? notifyType === "permission_prompt" : /permission/i.test(message);
 
-    // Enrichment. Claude: read the transcript (tool_use + last assistant text).
-    // Copilot: no transcript in the payload — read the preToolUse cache.
+    // Enrichment.
+    //  - Claude: last assistant text = the human-readable context ("what Claude
+    //    said"); the tool + input come from the PreToolUse cache below.
+    //  - Copilot: no transcript — tool + input from the preToolUse cache too.
     let detail = "";
     let tool: ToolUse | null = null;
     if (agent === "claude") {
-      // The pending tool_use may not be flushed to the transcript yet when the
-      // hook fires — give it a moment before reading. Only meaningful on
-      // permission events; on "waiting for input" it would be a stale tool.
-      if (isPermission) await sleep(400);
-      [detail, tool] = await Promise.all([
-        lastAssistantText(hook.transcript_path),
-        lastToolUse(hook.transcript_path),
-      ]);
-    } else if (isPermission) {
-      // preToolUse and notification race on two HTTP requests: retry once.
+      detail = await lastAssistantText(hook.transcript_path);
+    }
+    if (isPermission) {
+      // The PreToolUse event and the permission notification race on two HTTP
+      // requests: retry once if the cache hasn't been populated yet.
       tool = peekPendingTool(sessionId);
       if (!tool) {
         await sleep(300);

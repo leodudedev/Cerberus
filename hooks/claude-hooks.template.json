@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__CERBERUS_DIR__/hooks/notify.sh"
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "matcher": "",
