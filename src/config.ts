@@ -8,7 +8,10 @@ import type { Agent } from "./profile.ts";
 // or key names).
 export const actionKeys: Record<Agent, Record<string, string[]>> = {
   claude: {
-    approve: ["1", "Enter"], // first option = yes
+    approve: ["1", "Enter"], // first option = yes (this once)
+    // second option = "yes, and don't ask again for this command". Persists an
+    // allow rule for the command prefix — more consequential than a one-off yes.
+    always: ["2", "Enter"],
     // deny defaults to Escape (safe cancel). The "No" option number varies by
     // Claude version and picking the wrong digit could hit "yes, don't ask again".
     // Set to e.g. ["3", "Enter"] once verified on the live prompt.
@@ -17,8 +20,9 @@ export const actionKeys: Record<Agent, Record<string, string[]>> = {
   },
   copilot: {
     // Copilot CLI permission dialog: verify on a live prompt before trusting
-    // approve — same caveat as Claude, the option order can change per version.
+    // approve/always — same caveat as Claude, the option order can change per version.
     approve: ["1", "Enter"],
+    always: ["2", "Enter"],
     deny: ["Escape"],
     esc: ["Escape"],
   },

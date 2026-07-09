@@ -197,6 +197,8 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
   const kb = s.isPermission
     ? new InlineKeyboard()
         .text("✅ Approva", `approve:${s.sessionId}`)
+        .text("♾️ Sempre", `always:${s.sessionId}`)
+        .row()
         .text("❌ Nega", `deny:${s.sessionId}`)
         .text("⎋ Esc", `esc:${s.sessionId}`)
     : undefined;
