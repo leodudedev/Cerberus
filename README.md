@@ -1,6 +1,32 @@
-# 🐕‍🦺 Cerberus
+<div align="center">
 
-**Manage and approve Claude Code and GitHub Copilot CLI sessions remotely from your phone via Telegram and tmux.**
+<pre>
+█████ █████ ████  ████  █████ ████  █   █ █████
+█     █     █   █ █   █ █     █   █ █   █ █    
+█     ████  ████  ████  ████  ████  █   █ █████
+█     █     █  █  █   █ █     █  █  █   █     █
+█████ █████ █   █ ████  █████ █   █ █████ █████
+</pre>
+
+### 🐕‍🦺 Remote control for your AI coding sessions
+
+**Approve, deny, or prompt Claude Code &amp; GitHub Copilot CLI from your phone — over Telegram, straight into tmux.**
+
+permission prompts · waiting-for-input · risk-tagged commands · multi-account · local-first
+
+<br>
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node.js ≥22.18](https://img.shields.io/badge/Node.js-%E2%89%A522.18-5FA04E?logo=nodedotjs&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
+![Telegram](https://img.shields.io/badge/Telegram-26A5E4?logo=telegram&logoColor=white)
+![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=black)
+![no build step](https://img.shields.io/badge/build-none%20(Node%20native%20TS)-blue)
+![agents](https://img.shields.io/badge/agents-Claude%20Code%20%2B%20Copilot%20CLI-8A2BE2)
+
+[Install](#install) · [How it works](#how-it-works) · [Config](#per-project-config--cerberusjson) · [Security](#security)
+
+</div>
 
 > Your company won't enable remote control? No problem — Cerberus is your
 > three-headed guard dog, and it works the night shift for free. 🐕‍🦺
