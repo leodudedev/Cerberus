@@ -1,8 +1,9 @@
 # Cerberus — project guide for Claude
 
-Remote control for Claude Code sessions across multiple accounts: a session asks
-for attention (permission / input) → Telegram push to the phone → approve/deny or
-send a prompt back → keystrokes reach the right tmux pane via `send-keys`.
+Remote control for Claude Code (multi-account) and GitHub Copilot CLI sessions:
+a session asks for attention (permission / input) → Telegram push to the phone →
+approve/deny or send a prompt back → keystrokes reach the right tmux pane via
+`send-keys`.
 
 ## Run / test
 
@@ -23,10 +24,16 @@ notify.sh (hook, in pane) --POST /event--> daemon --> Telegram bot --> phone
                                               +---- send-keys <-- reply/buttons
 ```
 
-- `hooks/notify.sh` — Notification hook. Runs inside the pane, forwards the hook
-  payload + `$TMUX_PANE` + `$CLAUDE_CONFIG_DIR` to the daemon.
+- `hooks/notify.sh` — Claude Code Notification hook. Runs inside the pane,
+  forwards the hook payload + `$TMUX_PANE` + `$CLAUDE_CONFIG_DIR` to the daemon.
+- `hooks/copilot-notify.sh` — Copilot CLI hook (`notification` + `preToolUse`),
+  installed via `hooks/copilot-hooks.template.json` → `~/.copilot/hooks/`.
+  Must always exit 0 (non-zero on preToolUse = Copilot denies the tool).
 - `src/daemon/index.ts` — HTTP intake (`/health`, `/event`), loopback only.
-  Enriches from the transcript, applies mute, pushes.
+  Per-agent enrichment (Claude: transcript; Copilot: preToolUse cache),
+  applies mute, pushes.
+- `src/pending-tools.ts` — Copilot pending-tool cache (preToolUse → notification),
+  since Copilot's notification payload has no transcript/tool info.
 - `src/bot/index.ts` — Telegram: push messages, buttons, reply routing, commands.
 - `src/registry.ts` — session↔pane map + message↔session routing.
 - `src/tmux.ts` — `send-keys` / pane-alive helpers (execFile, no shell).

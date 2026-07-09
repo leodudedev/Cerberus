@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { Bot, InlineKeyboard } from "grammy";
-import { actionKeys } from "../config.ts";
+import { actionKeysFor } from "../config.ts";
 import { RISK_ICON, RISK_RANK, riskFor, type Risk } from "../classify.ts";
 import {
   linkMessage,
@@ -48,7 +48,8 @@ export function initBot(): boolean {
   bot.on("callback_query:data", async (ctx) => {
     const [action, sessionId] = ctx.callbackQuery.data.split(":");
     const s = sessionId ? getSession(sessionId) : undefined;
-    const keys = actionKeys[action];
+    // Keymap depends on the agent: Claude and Copilot dialogs differ.
+    const keys = s && action ? actionKeysFor(s.agent)[action] : undefined;
 
     if (!s || !keys) {
       await ctx.answerCallbackQuery({ text: "Sessione non trovata" });
@@ -189,8 +190,8 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
 
   // Buttons only on permission requests: on "waiting for input" there is no
   // dialog to confirm and a tap would type into the session's prompt.
-  const isPermission = /permission/i.test(s.lastMessage);
-  const kb = isPermission
+  // The flag is computed by the daemon (per-agent detection).
+  const kb = s.isPermission
     ? new InlineKeyboard()
         .text("✅ Approva", `approve:${s.sessionId}`)
         .text("❌ Nega", `deny:${s.sessionId}`)

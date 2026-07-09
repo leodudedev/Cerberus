@@ -1,13 +1,14 @@
-import type { Profile } from "./profile.ts";
+import type { Agent, Profile } from "./profile.ts";
 import { loadState, saveState } from "./persist.ts";
 
-// In-memory registry of live sessions, keyed by Claude session_id.
+// In-memory registry of live sessions, keyed by the agent's session id.
 // Maps a session to its tmux pane so remote replies (Fase 3) can be routed
 // back with `tmux send-keys`. Last-write-wins on pane, since a session_id is
 // stable but could be re-attached to a different pane.
 
 export interface SessionInfo {
   sessionId: string;
+  agent: Agent; // which CLI produced the event (drives the button keymap)
   pane: string;
   profile: Profile;
   cwd: string;
@@ -15,6 +16,7 @@ export interface SessionInfo {
   detail: string; // last assistant text from the transcript (the actual question)
   toolName: string; // tool awaiting permission (e.g. "Bash"), "" if none
   command: string; // command / input summary of that tool
+  isPermission: boolean; // event was a permission request (buttons make sense)
   lastSeen: number;
 }
 

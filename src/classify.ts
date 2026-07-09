@@ -62,7 +62,7 @@ export function classifyCommand(command: string): Risk {
   return "safe"; // plain read-only-ish command with no flagged token
 }
 
-// Risk for non-Bash tools, classified by tool name.
+// Risk for non-shell tools, classified by tool name.
 export function classifyTool(tool: string): Risk {
   switch (tool) {
     case "Read":
@@ -77,11 +77,17 @@ export function classifyTool(tool: string): Risk {
     case "WebFetch":
     case "WebSearch":
       return "caution";
-    default:
-      return "caution";
   }
+  // Copilot CLI tool names are lowercase and not a fixed set: fall back to a
+  // read-vs-write heuristic on the name.
+  if (/^(read|view|glob|grep|search|list|fetch|get|cat|ls)/i.test(tool)) return "safe";
+  return "caution";
 }
 
+// Tools whose input is a shell command: route them through classifyCommand.
+// "Bash" is Claude Code; the lowercase names cover Copilot CLI variants.
+const SHELL_TOOLS = /^(bash|shell|powershell|terminal|run_in_terminal|exec(ute)?_?\w*)$/i;
+
 export function riskFor(tool: string, command: string): Risk {
-  return tool === "Bash" ? classifyCommand(command) : classifyTool(tool);
+  return SHELL_TOOLS.test(tool) && command ? classifyCommand(command) : classifyTool(tool);
 }

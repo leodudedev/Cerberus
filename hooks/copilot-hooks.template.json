@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh preToolUse",
+        "timeoutSec": 5
+      }
+    ],
+    "notification": [
+      {
+        "type": "command",
+        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh notification",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}
