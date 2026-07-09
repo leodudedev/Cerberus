@@ -47,6 +47,11 @@ export function initBot(): boolean {
   // Buttons: approve / deny / esc -> keystrokes into the session's pane.
   bot.on("callback_query:data", async (ctx) => {
     const [action, sessionId] = ctx.callbackQuery.data.split(":");
+    // Inert marker button left after a handled message: nothing to do.
+    if (action === "noop") {
+      await ctx.answerCallbackQuery({ text: "Già gestito" });
+      return;
+    }
     const s = sessionId ? getSession(sessionId) : undefined;
     // Keymap depends on the agent: Claude and Copilot dialogs differ.
     const keys = s && action ? actionKeysFor(s.agent)[action] : undefined;
@@ -67,6 +72,21 @@ export function initBot(): boolean {
     }
 
     for (const k of keys) await sendKey(s.pane, k);
+
+    // Mark the message as handled: swap the buttons for a single inert label so
+    // it's obvious at a glance which action was taken, and re-taps are no-ops.
+    const label =
+      { approve: "✅ Approvato", always: "♾️ Sempre", deny: "❌ Negato", esc: "⎋ Annullato" }[
+        action
+      ] ?? action;
+    const when = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    try {
+      await ctx.editMessageReplyMarkup({
+        reply_markup: new InlineKeyboard().text(`${label} · ${when}`, `noop:${sessionId}`),
+      });
+    } catch {
+      // message too old or already edited — ignore
+    }
     await ctx.answerCallbackQuery({ text: `${action} → ${s.profile} ${s.pane}` });
   });
 
@@ -213,7 +233,10 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
     const cmd = flat ? `: \`${escapeCode(truncate(flat, CMD_MAX))}\`` : "";
     text += `\n\n${RISK_ICON[risk]} *${escapeMd(s.toolName)}*${cmd}`;
   }
-  if (s.detail) text += `\n\n💬 ${escapeMd(truncate(s.detail, 400))}`;
+  // The useful part of a recap ("what to do next") is at the END, so keep the
+  // tail, not the head. Telegram caps a message at 4096 chars; header+tool are
+  // small, so 1400 for the detail is safe.
+  if (s.detail) text += `\n\n💬 ${escapeMd(tailText(s.detail, 1400))}`;
 
   let sent;
   try {
@@ -228,7 +251,7 @@ export async function pushAttention(s: SessionInfo, opts: PushOptions = {}): Pro
     const plain =
       `${iconForProject(folder)} ${cap(s.profile)} · ${folder}\n${s.lastMessage}` +
       (s.toolName ? `\n\n${RISK_ICON[risk]} ${s.toolName}: ${truncate(flatCmd, CMD_MAX)}` : "") +
-      (s.detail ? `\n\n💬 ${truncate(s.detail, 400)}` : "");
+      (s.detail ? `\n\n💬 ${tailText(s.detail, 1400)}` : "");
     sent = await bot.api.sendMessage(target, plain, { reply_markup: kb });
   }
   // Link the message so a reply routes back to this session.
@@ -241,6 +264,16 @@ function cap(s: string): string {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+// Keep the END of a long string — recaps put the actionable summary last, so
+// tail-truncate instead of head. Drops a partial leading line and marks the cut.
+function tailText(s: string, max: number): string {
+  if (s.length <= max) return s;
+  let cut = s.slice(s.length - max);
+  const nl = cut.indexOf("\n");
+  if (nl >= 0 && nl < 240) cut = cut.slice(nl + 1);
+  return "…\n" + cut;
 }
 
 // Minimal MarkdownV2 escaping for the dynamic fields.
