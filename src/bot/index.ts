@@ -267,9 +267,24 @@ function truncate(s: string, n: number): string {
 }
 
 // Tools whose permission dialog reliably offers "yes, and don't ask again" as
-// option 2 — only then is the "Sempre" button (digit 2) safe. On a plain
-// yes/no dialog, digit 2 would mean "No", so we omit it there.
-const ALWAYS_OK = new Set(["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "WebFetch"]);
+// option 2. Only then is the "Sempre" button (digit 2) safe: on a plain yes/no
+// dialog digit 2 means "No". Bash is deliberately NOT here — it only offers the
+// always-option for simple commands (see hasAlwaysOption).
+const ALWAYS_OK = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "WebFetch"]);
+
+// Claude only offers "don't ask again" for a Bash command when it can derive a
+// prefix allow-rule — i.e. a single simple command. Compound commands (&&, ||,
+// pipes, ;, redirects, command substitution, heredocs, multi-line) show only
+// Yes/No, so digit 2 would land on "No". Be conservative: any shell operator
+// means "no always-option".
+function bashHasAlwaysOption(cmd: string): boolean {
+  return cmd.length > 0 && !/[\n;&|<>`]|\$\(|<</.test(cmd);
+}
+
+function hasAlwaysOption(s: SessionInfo): boolean {
+  if (s.toolName === "Bash") return bashHasAlwaysOption(s.command);
+  return ALWAYS_OK.has(s.toolName) || s.toolName.startsWith("mcp__");
+}
 
 function buildKeyboard(s: SessionInfo): InlineKeyboard | undefined {
   // AskUserQuestion: one button per real answer (digit + Enter). The user can
@@ -283,13 +298,12 @@ function buildKeyboard(s: SessionInfo): InlineKeyboard | undefined {
     return kb;
   }
   // Standard permission dialog. Buttons only here: on "waiting for input" a tap
-  // would type into the session's prompt.
+  // would type into the session's prompt. "Nega" uses Escape, which cancels any
+  // dialog regardless of option count, so a separate "Esc" button is redundant.
   if (s.isPermission) {
     const kb = new InlineKeyboard().text(t.btnApprove, `approve:${s.sessionId}`);
-    if (ALWAYS_OK.has(s.toolName) || s.toolName.startsWith("mcp__")) {
-      kb.text(t.btnAlways, `always:${s.sessionId}`);
-    }
-    kb.row().text(t.btnDeny, `deny:${s.sessionId}`).text(t.btnEsc, `esc:${s.sessionId}`);
+    if (hasAlwaysOption(s)) kb.text(t.btnAlways, `always:${s.sessionId}`);
+    kb.text(t.btnDeny, `deny:${s.sessionId}`);
     return kb;
   }
   return undefined;
