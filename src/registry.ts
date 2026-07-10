@@ -17,6 +17,7 @@ export interface SessionInfo {
   toolName: string; // tool awaiting permission (e.g. "Bash"), "" if none
   command: string; // command / input summary of that tool
   options: string[]; // AskUserQuestion answer labels → per-option buttons
+  hasAlways: boolean; // dialog offers a "don't ask again" option (read from pane)
   isPermission: boolean; // event was a permission request (buttons make sense)
   lastSeen: number;
 }

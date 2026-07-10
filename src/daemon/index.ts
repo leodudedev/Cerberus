@@ -7,6 +7,13 @@ import { lastAssistantText, type ToolUse } from "../transcript.ts";
 import { readProjectConfig } from "../project-config.ts";
 import { isMuted } from "../mute.ts";
 import { putPendingTool, peekPendingTool, summarizeToolArgs } from "../pending-tools.ts";
+import { capturePane } from "../tmux.ts";
+
+// A permission dialog offers a "don't ask again" / "allow all" option only
+// sometimes, and whether it does can't be inferred from the tool or command —
+// Claude attaches it to whatever sub-command it can turn into an allow rule. So
+// we read the option straight from the pane instead of guessing.
+const ALWAYS_OPTION_RE = /don'?t ask again|allow all|always allow|non chiedere|consenti sempre/i;
 
 // HTTP daemon that receives detection events from the hook scripts.
 // Two producers, one endpoint:
@@ -171,6 +178,20 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // Read the actual dialog from the pane to know whether a "don't ask again"
+    // option is present — the only reliable source. Skip when we already have
+    // AskUserQuestion options (those drive per-option buttons instead).
+    let hasAlways = false;
+    if (isPermission && options.length === 0 && body?.tmux_pane) {
+      let dialog = await capturePane(body.tmux_pane);
+      // The dialog may not be painted yet when the hook fires; retry once.
+      if (!/\b\d+\.\s/.test(dialog)) {
+        await sleep(200);
+        dialog = await capturePane(body.tmux_pane);
+      }
+      hasAlways = ALWAYS_OPTION_RE.test(dialog);
+    }
+
     const profile: Profile = agent === "copilot" ? "copilot" : profileFromConfigDir(body?.config_dir);
     const session = upsertSession({
       sessionId,
@@ -183,6 +204,7 @@ const server = createServer(async (req, res) => {
       toolName: tool?.name ?? "",
       command: tool?.command ?? "",
       options,
+      hasAlways,
       isPermission,
     });
     console.log("[event]", {

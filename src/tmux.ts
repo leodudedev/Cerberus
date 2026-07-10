@@ -32,3 +32,16 @@ export async function sendPrompt(pane: string, text: string): Promise<void> {
   await sendText(pane, text);
   await sendKey(pane, "Enter");
 }
+
+// Dump the visible contents of a pane as plain text (no escape sequences).
+// Used to read the actual permission dialog so the notification buttons match
+// exactly what the CLI is showing.
+export async function capturePane(pane: string): Promise<string> {
+  if (!pane) return "";
+  try {
+    const { stdout } = await exec("tmux", ["capture-pane", "-p", "-t", pane]);
+    return stdout;
+  } catch {
+    return "";
+  }
+}
