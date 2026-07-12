@@ -2,7 +2,7 @@
 
 # 🐕‍🦺 Cerberus
 
-**Remote control for your AI coding sessions** — approve, deny, or prompt Claude Code &amp; GitHub Copilot CLI from your phone, over Telegram, straight into tmux.
+**Remote control for your AI coding sessions** — approve, deny, or prompt Claude Code &amp; GitHub Copilot CLI from your phone, over Telegram, straight into the right terminal pane.
 
 <sub>permission prompts · waiting-for-input · risk-tagged commands · multi-account · local-first</sub>
 
@@ -83,10 +83,29 @@ the notification.
 ## Requirements
 
 - **Node.js ≥ 22.18** (runs `.ts` natively — no build step; 23.6+ recommended)
-- **tmux** — sessions must run inside tmux panes
+- **tmux** — sessions must run inside tmux panes (the injection transport on every platform)
 - **pnpm** (`corepack enable` or `npm i -g pnpm`)
 - A **Telegram bot** ([@BotFather](https://t.me/BotFather)) and your chat id
 - Claude Code and/or GitHub Copilot CLI
+
+### Platform support
+
+| OS | Status |
+|----|--------|
+| **Linux** | ✅ native |
+| **macOS** | ✅ native |
+| **Windows** | ✅ via **WSL2** (see below) |
+
+Cerberus drives terminal panes with `tmux send-keys`, so it needs tmux on
+every platform.
+
+**Windows → WSL2.** tmux has no native Windows build (it needs Unix ptys,
+fork, and Unix sockets). Git Bash / MSYS2 / Cygwin ship a tmux package but the
+pty is emulated and `send-keys` is unreliable; Windows Terminal and PowerShell
+aren't supported at all. Run the **daemon, tmux, and your CLI sessions inside a
+WSL2 distro** — from there everything works exactly as on Linux. Claude Code
+itself is already recommended under WSL2 on Windows, so this is the normal
+setup, not extra work.
 
 ---
 
