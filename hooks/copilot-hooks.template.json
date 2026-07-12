@@ -4,14 +4,21 @@
     "preToolUse": [
       {
         "type": "command",
-        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh preToolUse",
+        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh",
         "timeoutSec": 5
       }
     ],
     "notification": [
       {
         "type": "command",
-        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh notification",
+        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh",
+        "timeoutSec": 5
+      }
+    ],
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "__CERBERUS_DIR__/hooks/copilot-notify.sh",
         "timeoutSec": 5
       }
     ]

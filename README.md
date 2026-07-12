@@ -64,13 +64,16 @@ each notification routes back to its own tmux pane.
    - **Claude Code** — the `Notification` hook (`hooks/notify.sh`).
    - **Copilot CLI** — the `notification` hook (`hooks/copilot-notify.sh`);
      a companion `preToolUse` hook caches the tool about to run, since
-     Copilot's notification payload doesn't include it.
+     Copilot's notification payload doesn't include it, and an `agentStop`
+     hook fires when Copilot finishes a turn.
 2. The hook runs **inside the tmux pane**, so it inherits `$TMUX_PANE` (and,
    for Claude, `$CLAUDE_CONFIG_DIR`). It POSTs the event to the local
    **daemon** (`127.0.0.1:8899`).
 3. The daemon enriches the event — for Claude it reads the session transcript
-   (pending tool + last assistant message), for Copilot it reads the
-   `preToolUse` cache — classifies the risk, and pushes a **Telegram** message.
+   (pending tool + last assistant message); for Copilot, permission prompts use
+   the `preToolUse` cache and `agentStop` reads the last message from Copilot's
+   own `events.jsonl` transcript — classifies the risk, and pushes a
+   **Telegram** message.
 4. Button taps and replies come back through the bot; the daemon routes them to
    the originating pane with **`tmux send-keys`**.
 
@@ -184,28 +187,31 @@ merges into an existing `settings.json`, so this can't be a drop-in copy.)
 
 ## Hook setup — GitHub Copilot CLI (once)
 
-Copilot CLI reads hook configs from `~/.copilot/hooks/*.json`. Generate one
-from the template (it bakes in the absolute path to this repo):
+Copilot CLI reads hooks from the `"hooks"` key of `~/.copilot/settings.json`.
+Merge the block from the template (it bakes in the absolute path to this repo)
+into that file — keep any existing keys like `"model"`:
 
 ```bash
-mkdir -p ~/.copilot/hooks
-sed "s|__CERBERUS_DIR__|$PWD|g" hooks/copilot-hooks.template.json \
-  > ~/.copilot/hooks/cerberus.json
+# print the block to merge (all three entries point at the same script)
+sed "s|__CERBERUS_DIR__|$PWD|g" hooks/copilot-hooks.template.json
 ```
 
-Run the command from the cerberus repo root. Restart any running `copilot`
-session afterwards — hook configs are loaded at startup.
+Run from the cerberus repo root. Restart any running `copilot` session
+afterwards — settings are loaded at startup, so a live session won't pick up
+new hooks (its session id stays the same; a restart gives a fresh one).
 
-This registers two hooks:
+This registers three hooks:
 
 | Event | Purpose |
 |-------|---------|
-| `notification` | pushes permission prompts / idle / completed to Telegram |
+| `notification` | pushes permission prompts to Telegram |
 | `preToolUse` | caches the pending tool + args so the notification can show *what* you're approving |
+| `agentStop` | pushes a completion notification when Copilot finishes a turn, enriched with its last message from the session transcript |
 
-Both are fire-and-forget and never block or deny anything (the `preToolUse`
-script always exits 0 — Copilot treats a non-zero exit from a `preToolUse`
-hook as "deny the tool").
+All three are fire-and-forget and never block or deny anything (the
+`preToolUse` script always exits 0 — Copilot treats a non-zero exit from a
+`preToolUse` hook as "deny the tool"). The daemon identifies each event from
+its payload shape, so the script needs no per-event argument.
 
 > **Note (hooks in general):** both hook scripts are best-effort and
 > non-blocking. If the daemon is down they silently no-op and never stall a
@@ -248,8 +254,10 @@ A notification looks like:
 >
 > 💬 Cleaning the build folder before recompiling.
 
-Copilot notifications look the same (profile label `Copilot`, no 💬 line —
-Copilot doesn't expose the transcript).
+Copilot notifications look the same (profile label `Copilot`). Permission
+prompts have no 💬 context line — Copilot's permission payload carries no
+transcript — but `agentStop` completion notifications do: the last message is
+read from Copilot's `events.jsonl` transcript.
 
 | Action | How |
 |--------|-----|
@@ -335,10 +343,16 @@ fall back to a read-vs-write heuristic).
   config dirs to your own labels.
 
 ### GitHub Copilot CLI
-- No transcript in the hook payload: the pending tool comes from the
+- Permission payloads carry no tool info: the pending tool comes from the
   `preToolUse` cache instead. If the cache misses (daemon restarted between
   the two events), the notification still arrives — just without the command
   detail.
+- Copilot doesn't pass a per-event argument to the hook script, so the daemon
+  identifies the event from the payload (`notification_type` → permission,
+  `toolName` → preToolUse, `stopReason` → agentStop).
+- `agentStop` completion notifications read the last assistant message from
+  Copilot's `events.jsonl` transcript (path supplied in the payload). An empty
+  turn (no text) stays silent.
 - Copilot fires notifications for many lifecycle moments; Cerberus forwards
   only `permission_prompt`, `elicitation_dialog`, `agent_idle` and
   `agent_completed`, and drops the rest (`shell_completed`, …).
@@ -368,12 +382,12 @@ fall back to a read-vs-write heuristic).
 hooks/notify.sh                     Claude Code Notification hook (curls the daemon)
 hooks/claude-hooks.template.json    Claude hook config template (→ settings.json)
 hooks/copilot-notify.sh             Copilot CLI hook (notification + preToolUse)
-hooks/copilot-hooks.template.json   Copilot hook config template (→ ~/.copilot/hooks/)
+hooks/copilot-hooks.template.json   Copilot hook config template (→ ~/.copilot/settings.json "hooks")
 src/daemon/index.ts                 HTTP intake + per-agent enrichment + push
 src/bot/index.ts                    Telegram push, buttons, replies, /mute
 src/registry.ts                     session ↔ pane ↔ message maps
 src/tmux.ts                         send-keys / pane-alive helpers
-src/transcript.ts                   Claude transcript reader (tool_use + last text)
+src/transcript.ts                   transcript readers (Claude tool_use + last text; Copilot last message)
 src/pending-tools.ts                Copilot preToolUse cache
 src/classify.ts                     risk classifier
 src/profile.ts                      agent + profile labels
