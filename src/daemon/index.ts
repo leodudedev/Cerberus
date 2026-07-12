@@ -213,13 +213,24 @@ const server = createServer(async (req, res) => {
       pane: session.pane || "(none)",
       session: session.sessionId,
       cwd: session.cwd,
+      notifyType: notifyType || "(none)",
       message: session.lastMessage,
     });
+
+    // Copilot fires the `notification` hook for several lifecycle moments; some
+    // (e.g. agent_idle/agent_completed) arrive with no message, no transcript
+    // and no pending tool. A push for that renders an empty bubble with no
+    // buttons — pure noise. Suppress anything non-permission with nothing to
+    // show. Permission prompts always render (buttons are the whole point).
+    const contentless =
+      !isPermission && !message && !detail && !tool && options.length === 0;
 
     // Per-project overrides (.cerberus.json) + runtime mute applied before pushing.
     const pcfg = readProjectConfig(session.cwd);
     if (pcfg.mute || isMuted(session.cwd)) {
       console.log("[mute]", session.cwd);
+    } else if (contentless) {
+      console.log("[empty-skip]", notifyType || "(none)", session.cwd);
     } else if (!isPermission && pcfg.notifyIdle === false) {
       console.log("[idle-skip]", session.cwd);
     } else {
