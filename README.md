@@ -91,24 +91,42 @@ the notification.
 - A **Telegram bot** ([@BotFather](https://t.me/BotFather)) and your chat id
 - Claude Code and/or GitHub Copilot CLI
 
-### Platform support
+## Running anywhere
 
-| OS | Status |
-|----|--------|
-| **Linux** | ✅ native |
-| **macOS** | ✅ native |
-| **Windows** | ✅ via **WSL2** (see below) |
+Cerberus is terminal-emulator agnostic. It never talks to iTerm2, Terminal.app,
+Windows Terminal, or any other emulator — it drives panes through
+**`tmux send-keys`**. The emulator is just the window that hosts tmux, so any of
+them works (iTerm2, Terminal.app, kitty, WezTerm, Ghostty, GNOME Terminal,
+Konsole, Alacritty…). **The only requirement is tmux.**
 
-Cerberus drives terminal panes with `tmux send-keys`, so it needs tmux on
-every platform.
+**One rule that decides everything:** the daemon must run on the *same host as
+the tmux panes* — `send-keys` is a local operation. The Telegram bot reaches out
+from there, so nothing needs to be exposed publicly.
 
-**Windows → WSL2.** tmux has no native Windows build (it needs Unix ptys,
-fork, and Unix sockets). Git Bash / MSYS2 / Cygwin ship a tmux package but the
-pty is emulated and `send-keys` is unreliable; Windows Terminal and PowerShell
-aren't supported at all. Run the **daemon, tmux, and your CLI sessions inside a
-WSL2 distro** — from there everything works exactly as on Linux. Claude Code
-itself is already recommended under WSL2 on Windows, so this is the normal
-setup, not extra work.
+```
+[any emulator] → tmux → pane (claude / copilot) → hook ─┐
+                                                        ▼
+        send-keys ◄─── daemon (127.0.0.1) ◄─── Telegram (your phone)
+        └──────────── same host ────────────┘
+```
+
+| OS | Status | tmux | Notes |
+|----|--------|------|-------|
+| **Linux** | ✅ native | `apt`/`dnf`/`pacman install tmux` | simplest — everything is native |
+| **macOS** | ✅ native | `brew install tmux` | any emulator; iTerm2 is fine but not special |
+| **Windows** | ✅ via WSL2 | inside WSL2 | run the daemon **and** tmux **and** the sessions inside WSL2 |
+
+**macOS / iTerm2.** No need to recommend a specific emulator. If you *do* use
+iTerm2, run plain `tmux` inside it — **avoid iTerm2's tmux control mode
+(`tmux -CC`)**: it remaps pane semantics/ids and can break `send-keys`.
+
+**Windows → WSL2.** tmux has no native Windows build (it needs Unix ptys, fork,
+and Unix sockets). Git Bash / MSYS2 / Cygwin ship a tmux package but the pty is
+emulated and `send-keys` is unreliable; Windows Terminal and PowerShell aren't
+supported directly. Run the **daemon, tmux, and your CLI sessions inside a WSL2
+distro** — Windows Terminal is just the window onto that WSL shell, and from
+there everything behaves exactly as on Linux. Claude Code itself is already
+recommended under WSL2 on Windows, so this is the normal setup, not extra work.
 
 ---
 
