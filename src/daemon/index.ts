@@ -3,7 +3,7 @@ import { config } from "../config.ts";
 import { profileFromConfigDir, type Agent, type Profile } from "../profile.ts";
 import { upsertSession } from "../registry.ts";
 import { initBot, pushAttention } from "../bot/index.ts";
-import { lastAssistantText, type ToolUse } from "../transcript.ts";
+import { lastAssistantText, lastCopilotText, type ToolUse } from "../transcript.ts";
 import { readProjectConfig } from "../project-config.ts";
 import { isMuted } from "../mute.ts";
 import { putPendingTool, peekPendingTool, summarizeToolArgs } from "../pending-tools.ts";
@@ -110,7 +110,16 @@ const server = createServer(async (req, res) => {
 
     // Copilot preToolUse: cache the tool about to run and stop here — the
     // permission notification (if any) follows as a separate event.
-    if (agent === "copilot" && body?.event === "preToolUse") {
+    // Copilot does NOT pass the CLI arg through the `bash` hook field, so
+    // body.event is "unknown" in practice. Detect preToolUse from the payload
+    // shape instead: it carries toolName/toolArgs and, unlike notifications,
+    // has no notification_type / hook_event_name. (The arg path is kept as a
+    // fast-path in case a future Copilot build restores it.)
+    const looksLikePreTool =
+      !hook.notification_type &&
+      hook.hook_event_name !== "Notification" &&
+      (hook.toolName != null || hook.tool_name != null);
+    if (agent === "copilot" && (body?.event === "preToolUse" || looksLikePreTool)) {
       const name = String(hook.toolName ?? hook.tool_name ?? "");
       const command = summarizeToolArgs(hook.toolArgs ?? hook.tool_input);
       putPendingTool(sessionId, name, command);
@@ -136,10 +145,22 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    const message = String(hook.message ?? hook.title ?? "");
     const notifyType = String(hook.notification_type ?? "");
 
-    if (agent === "copilot" && notifyType && !COPILOT_NOTIFY_TYPES.has(notifyType)) {
+    // Copilot agentStop: the agent finished its response. The payload carries a
+    // `stopReason` (e.g. "end_turn") plus a transcriptPath, but no message and
+    // no notification_type — so without this it would be suppressed as an empty
+    // event. Treat it as a non-permission "done" notification and enrich it with
+    // the last assistant text from the transcript (Claude-style feedback).
+    const isCopilotStop = agent === "copilot" && typeof hook.stopReason === "string";
+    let doneText = "";
+    if (isCopilotStop) {
+      doneText = await lastCopilotText(String(hook.transcriptPath ?? ""));
+    }
+
+    const message = isCopilotStop ? doneText : String(hook.message ?? hook.title ?? "");
+
+    if (agent === "copilot" && !isCopilotStop && notifyType && !COPILOT_NOTIFY_TYPES.has(notifyType)) {
       console.log("[copilot-skip]", notifyType);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));

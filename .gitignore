@@ -7,3 +7,4 @@ dist
 state.json
 .DS_Store
 .cerberus.json
+.aider.chat.history.md

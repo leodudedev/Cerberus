@@ -41,6 +41,25 @@ export async function lastAssistantText(path: string | undefined): Promise<strin
   return "";
 }
 
+// Copilot's transcript (events.jsonl) is a flat list of {type, data, ...} rows.
+// The most recent `assistant.message` row carries the final text in
+// `data.content` — used to enrich the agentStop completion notification.
+export async function lastCopilotText(path: string | undefined): Promise<string> {
+  if (!path) return "";
+  try {
+    const lines = await readLines(path);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const j = lines[i];
+      if (j?.type !== "assistant.message") continue;
+      const c = j.data?.content;
+      if (typeof c === "string" && c.trim()) return c.trim();
+    }
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
 // The pending tool + its input no longer come from the transcript: the daemon
 // caches them from the PreToolUse hook (see src/pending-tools.ts), which is
 // exact and race-free. Reading the transcript for the tool was unreliable —
