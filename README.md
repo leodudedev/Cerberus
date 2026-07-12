@@ -132,6 +132,34 @@ recommended under WSL2 on Windows, so this is the normal setup, not extra work.
 
 ## Install
 
+### Install tmux (required)
+
+Cerberus drives your sessions through `tmux send-keys` — without tmux there is
+nothing to control, so install it first:
+
+```bash
+# macOS
+brew install tmux
+
+# Debian / Ubuntu
+sudo apt install tmux
+
+# Fedora / RHEL
+sudo dnf install tmux
+
+# Arch
+sudo pacman -S tmux
+
+# Windows → inside a WSL2 distro (see "Running anywhere"), then use its
+# package manager, e.g. on Ubuntu-WSL:
+sudo apt install tmux
+```
+
+Verify: `tmux -V` should print a version. See [Running anywhere](#running-anywhere)
+for why the terminal emulator doesn't matter and where the daemon must run.
+
+### Clone and configure
+
 ```bash
 git clone <repo> cerberus
 cd cerberus
